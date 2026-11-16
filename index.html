@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="継続ルーレット">
+<meta name="format-detection" content="telephone=no">
+<title>継続日数ルーレット</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0a'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23c9ad72' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='5' fill='%23c9ad72'/%3E%3Cpath d='M32 6l-5 9h10z' fill='%23c9ad72'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0a0a0a;
+  --panel:#131313;
+  --panel-2:#191919;
+  --line:rgba(255,255,255,.09);
+  --gold:#c9ad72;
+  --gold-hi:#dcc48d;
+  --gold-dim:rgba(201,173,114,.35);
+  --text:#f1ece1;
+  --muted:#9a958a;
+  --err:#e39a88;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+  --serif:ui-serif,"New York","Hiragino Mincho ProN","Yu Mincho",Georgia,"Times New Roman",serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --s:min(84vw,max(220px,calc(100svh - 372px)),500px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text)}
+body{
+  font-family:var(--sans);
+  min-height:100vh;min-height:100svh;
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+  touch-action:manipulation;
+  -webkit-user-select:none;user-select:none;
+  overscroll-behavior:none;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0;touch-action:manipulation;-webkit-touch-callout:none}
+button:disabled{cursor:default}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+.app{
+  position:relative;overflow:hidden;
+  min-height:100vh;min-height:100svh;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 20px) calc(env(safe-area-inset-bottom) + 18px) calc(env(safe-area-inset-left) + 20px);
+  background:radial-gradient(120% 60% at 50% 38%,rgba(201,173,114,.07),rgba(201,173,114,0) 62%),var(--bg);
+}
+.top{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
+.brand{margin:0;font-size:11px;font-weight:500;letter-spacing:.34em;color:var(--muted);line-height:1.5}
+.brand b{display:block;font-weight:600;color:var(--text);letter-spacing:.18em;font-size:13px}
+.pill{
+  display:inline-flex;align-items:center;gap:9px;height:42px;padding:0 16px 0 13px;border-radius:999px;
+  border:1px solid var(--gold-dim);color:var(--gold-hi);font-size:14px;font-weight:500;letter-spacing:.08em;
+  background:rgba(255,255,255,.015);
+  transition:background .25s,border-color .25s,transform .15s var(--ease),opacity .25s;
+}
+.pill svg{width:18px;height:18px;flex:none}
+@media (hover:hover){.pill:hover:not(:disabled){background:rgba(201,173,114,.1);border-color:var(--gold)}}
+.pill:active:not(:disabled){transform:scale(.96)}
+.pill:disabled{opacity:.4}
+
+.stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:20px 0 6px}
+.wheel-wrap{position:relative;width:var(--s);height:var(--s);flex:none}
+.wheel-wrap::before{ /* 外周の細いゴールドリング */
+  content:"";position:absolute;inset:-11px;border-radius:50%;border:1px solid var(--gold-dim);pointer-events:none;
+}
+.wheel-wrap::after{ /* 影 */
+  content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.9),0 0 0 1px rgba(0,0,0,.6);
+}
+#wheel{display:block;width:100%;height:100%;border-radius:50%;will-change:transform;transform:rotate(0rad)}
+.hub{
+  position:absolute;left:50%;top:50%;width:calc(var(--s)*.2);height:calc(var(--s)*.2);transform:translate(-50%,-50%);
+  border-radius:50%;background:#0b0b0b;border:1.5px solid var(--gold);
+  display:grid;place-items:center;z-index:2;box-shadow:0 0 0 4px rgba(0,0,0,.55),0 6px 18px rgba(0,0,0,.7);
+}
+.hub::after{content:"";position:absolute;inset:5px;border-radius:50%;border:1px solid var(--gold-dim)}
+.hub span{font-size:max(7px,calc(var(--s)*.021));letter-spacing:.2em;text-indent:.2em;color:var(--gold);font-weight:600}
+.pointer{
+  --pw:clamp(24px,calc(var(--s)*.085),36px);
+  position:absolute;left:50%;top:calc(var(--pw)*-.92);width:var(--pw);height:calc(var(--pw)*1.533);margin-left:calc(var(--pw)*-.5);
+  transform-origin:50% 30%;z-index:3;will-change:transform;
+  filter:drop-shadow(0 3px 5px rgba(0,0,0,.65));
+}
+.pointer svg{display:block;width:100%;height:100%}
+.ring{position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--gold-hi);opacity:0;pointer-events:none;z-index:1}
+.ring.go{animation:ring 1.2s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes ring{0%{opacity:.85;transform:scale(1)}100%{opacity:0;transform:scale(1.16)}}
+.wheel-wrap.flash #wheel{animation:flash .9s var(--ease)}
+@keyframes flash{0%{filter:brightness(1)}25%{filter:brightness(1.35)}100%{filter:brightness(1)}}
+
+.controls{display:flex;flex-direction:column;align-items:center;gap:20px;width:100%}
+.spin{
+  position:relative;width:min(78vw,320px);height:64px;border-radius:999px;
+  background:var(--gold);color:#121212;font-size:17px;font-weight:700;letter-spacing:.42em;text-indent:.42em;
+  box-shadow:0 0 0 1px rgba(201,173,114,.5),0 14px 34px -14px rgba(201,173,114,.55);
+  transition:transform .14s var(--ease),background .25s,box-shadow .25s,color .25s;
+}
+@media (hover:hover){.spin:hover:not(:disabled){background:var(--gold-hi);box-shadow:0 0 0 1px var(--gold-hi),0 18px 40px -14px rgba(201,173,114,.7)}}
+.spin:active:not(:disabled){transform:scale(.965);box-shadow:0 0 0 1px var(--gold),0 6px 16px -10px rgba(201,173,114,.5)}
+.spin:disabled{background:#26231d;color:#8a8473;box-shadow:0 0 0 1px rgba(201,173,114,.18)}
+
+.strip{width:min(100%,420px);min-height:58px;padding:12px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);position:relative;overflow:hidden}
+.strip-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.eyebrow{margin:0;font-size:10.5px;font-weight:600;letter-spacing:.38em;color:var(--gold)}
+.strip-text{margin:3px 0 0;font-size:14px;line-height:1.5;color:var(--text)}
+.strip-text small{color:var(--muted);font-size:12.5px;margin-left:6px}
+.strip.idle .strip-text{color:var(--muted)}
+.link{font-size:13px;color:var(--muted);padding:10px 4px;letter-spacing:.06em;transition:color .2s}
+@media (hover:hover){.link:hover{color:var(--gold-hi)}}
+.bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.06)}
+.bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .8s var(--ease)}
+
+/* ---------- ボタン共通 ---------- */
+.btn{
+  min-height:52px;padding:0 22px;border-radius:999px;font-size:15px;font-weight:600;letter-spacing:.1em;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:transform .14s var(--ease),background .25s,border-color .25s,color .25s;
+}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--gold);color:#121212}
+.btn.ghost{border:1px solid rgba(255,255,255,.16);color:var(--text)}
+.btn:disabled{opacity:.35}
+@media (hover:hover){
+  .btn.primary:hover:not(:disabled){background:var(--gold-hi)}
+  .btn.ghost:hover:not(:disabled){border-color:var(--gold);color:var(--gold-hi)}
+}
+
+/* ---------- オーバーレイ（結果・確認） ---------- */
+.overlay{
+  position:fixed;inset:0;z-index:20;display:grid;place-items:center;
+  padding:calc(env(safe-area-inset-top) + 20px) 22px calc(env(safe-area-inset-bottom) + 20px);
+  background:rgba(6,6,6,.9);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  opacity:0;visibility:hidden;transition:opacity .45s ease,visibility 0s linear .45s;overflow-y:auto;
+}
+.overlay.open{opacity:1;visibility:visible;transition:opacity .45s ease}
+.result-card{width:min(100%,420px);display:flex;flex-direction:column;align-items:center;text-align:center}
+.view{display:none;flex-direction:column;align-items:center;width:100%}
+.result-card[data-mode="result"] .view-result,.result-card[data-mode="started"] .view-started{display:flex}
+.num{font-family:var(--serif);font-weight:400;font-size:clamp(104px,36vw,176px);line-height:1;margin:20px 0 4px;color:var(--text);letter-spacing:-.02em;font-variant-numeric:lining-nums}
+.unit{margin:0;font-size:15px;font-weight:600;letter-spacing:.7em;text-indent:.7em;color:var(--gold)}
+.rule{display:block;width:44px;height:1px;background:var(--gold);margin:26px 0 22px;opacity:.7}
+.msg{margin:0;font-size:17px;line-height:1.7;letter-spacing:.06em}
+.msg-sub{margin:8px 0 0;font-size:13px;color:var(--muted);letter-spacing:.06em;line-height:1.7}
+.note{margin:14px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+.stack{display:flex;flex-direction:column;gap:12px;width:100%;margin-top:34px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row .btn{padding:0 10px;font-size:14px}
+.overlay.open .eyebrow{animation:fadeUp .8s var(--ease) both .05s}
+.overlay.open .num{animation:numIn 1s var(--ease) both .12s}
+.overlay.open .unit{animation:fadeUp .8s var(--ease) both .3s}
+.overlay.open .rule{animation:ruleIn .9s var(--ease) both .4s}
+.overlay.open .msg{animation:fadeUp .8s var(--ease) both .5s}
+.overlay.open .msg-sub,.overlay.open .note{animation:fadeUp .8s var(--ease) both .58s}
+.overlay.open .stack{animation:fadeUp .8s var(--ease) both .7s}
+@keyframes numIn{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes ruleIn{from{opacity:0;transform:scaleX(0)}to{opacity:.7;transform:scaleX(1)}}
+
+.dialog{width:min(100%,360px);padding:26px 22px 20px;border:1px solid var(--line);border-radius:20px;background:var(--panel-2);text-align:center;
+  transform:translateY(14px) scale(.97);transition:transform .45s var(--ease)}
+.overlay.open .dialog{transform:none}
+.dialog h3{margin:0 0 8px;font-size:17px;letter-spacing:.06em}
+.dialog p{margin:0 0 22px;font-size:14px;color:var(--muted);line-height:1.7}
+.dialog .row .btn{font-size:14.5px}
+
+/* ---------- 設定シート ---------- */
+.sheet-layer{position:fixed;inset:0;z-index:30;overflow:hidden;pointer-events:none}
+.sheet-backdrop{position:absolute;inset:0;pointer-events:auto;background:rgba(0,0,0,.6);opacity:0;visibility:hidden;transition:opacity .4s ease,visibility 0s linear .4s}
+.sheet-backdrop.open{opacity:1;visibility:visible;transition:opacity .4s ease}
+.sheet{
+  position:absolute;z-index:1;pointer-events:auto;left:50%;bottom:var(--kb,0px);width:min(100%,520px);transform:translate(-50%,105%);
+  padding:10px 22px calc(env(safe-area-inset-bottom) + 22px);
+  background:var(--panel);border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;
+  transition:transform .55s var(--ease),visibility 0s linear .55s;visibility:hidden;
+  max-height:calc(92svh - var(--kb,0px));overflow-y:auto;
+}
+.sheet.open{transform:translate(-50%,0);visibility:visible;transition:transform .55s var(--ease)}
+.grab{width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:0 auto 18px}
+.sheet h2{margin:6px 0 4px;font-size:20px;font-weight:600;letter-spacing:.08em}
+.sheet .lead{margin:0 0 20px;font-size:13px;color:var(--muted);line-height:1.7}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field label{display:block;margin-bottom:8px;font-size:12px;color:var(--muted);letter-spacing:.14em}
+.stepper{display:flex;align-items:stretch;height:56px;border:1px solid rgba(255,255,255,.14);border-radius:14px;background:var(--bg);overflow:hidden;transition:border-color .25s}
+.stepper:focus-within{border-color:var(--gold)}
+.stepper.bad{border-color:var(--err)}
+.stepper input:focus-visible,.stepper input:focus{outline:none}
+.stepper button:focus-visible{outline-offset:-4px;border-radius:12px}
+.stepper button{width:42px;flex:none;font-size:22px;color:var(--gold);transition:background .2s,transform .12s}
+.stepper button:active{background:rgba(201,173,114,.14)}
+.stepper input{
+  flex:1;min-width:0;width:100%;text-align:center;background:none;border:0;color:var(--text);
+  font:600 22px var(--serif);-webkit-user-select:text;user-select:text;border-radius:0;
+}
+.err{min-height:20px;margin:7px 2px 0;font-size:12px;line-height:1.5;color:var(--err)}
+.summary{margin:10px 0 2px;padding:13px 14px;border:1px solid var(--line);border-radius:12px;font-size:13.5px;color:var(--muted);line-height:1.6;display:flex;justify-content:space-between;gap:10px}
+.summary b{color:var(--text);font-weight:600}
+.sheet .actions{display:grid;grid-template-columns:auto 1fr;gap:12px;margin-top:20px}
+
+@media (max-height:520px) and (orientation:landscape){
+  :root{--s:max(180px,calc(100svh - 120px))}
+  .stage{flex-direction:row;gap:48px;padding:6px 0}
+  .controls{width:auto}
+  .strip{width:min(320px,40vw)}
+}
+@media (prefers-reduced-motion:reduce){
+  .overlay,.sheet,.sheet-backdrop,.dialog{transition-duration:.01s!important}
+  .overlay.open *{animation-duration:.01s!important}
+  .ring.go,.wheel-wrap.flash #wheel{animation:none}
+}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <p class="brand">CONTINUITY<b>継続日数ルーレット</b></p>
+    <button class="pill" id="settingsBtn" type="button" aria-haspopup="dialog" aria-label="抽選範囲の設定を開く">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      <span id="rangeLabel">2 – 7 日</span>
+    </button>
+  </header>
+
+  <main class="stage">
+    <div class="wheel-wrap" id="wheelWrap">
+      <canvas id="wheel" role="img" aria-label="日数ルーレット"></canvas>
+      <div class="ring" id="ring"></div>
+      <div class="hub" aria-hidden="true"><span>DAYS</span></div>
+      <div class="pointer" id="pointer" aria-hidden="true">
+        <svg viewBox="0 0 30 46"><path d="M15 45 L6 19 A10 10 0 1 1 24 19 Z" fill="#d6bc82" stroke="#0a0a0a" stroke-width="1.6" stroke-linejoin="round"/><circle cx="15" cy="14" r="3.3" fill="#0a0a0a"/></svg>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="spin" id="spinBtn" type="button">SPIN</button>
+      <section class="strip idle" id="strip" aria-live="polite">
+        <div class="strip-row">
+          <div>
+            <p class="eyebrow" id="stripLabel">READY</p>
+            <p class="strip-text" id="stripText">SPINで、挑戦する日数を決めよう。</p>
+          </div>
+          <button class="link" id="endBtn" type="button" hidden>終了</button>
+        </div>
+        <div class="bar" id="bar" hidden><i id="barFill"></i></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- 結果画面 -->
+<div class="overlay" id="result" role="dialog" aria-modal="true" aria-labelledby="resLabel" aria-hidden="true">
+  <div class="result-card" id="resultCard" data-mode="result">
+    <div class="view view-result">
+      <p class="eyebrow" id="resLabel">YOUR CHALLENGE</p>
+      <div class="num" id="resNum">7</div>
+      <p class="unit" id="resUnit">DAYS</p>
+      <span class="rule"></span>
+      <p class="msg" id="resMsg">7日間、継続に挑戦しよう。</p>
+      <p class="note" id="resNote" hidden>確定すると、進行中のチャレンジは置き換わります。</p>
+      <div class="stack">
+        <button class="btn primary" id="confirmBtn" type="button">結果を確定する</button>
+        <div class="row">
+          <button class="btn ghost" id="againBtn" type="button">もう一度回す</button>
+          <button class="btn ghost" id="toSettingsBtn" type="button">設定を変更する</button>
+        </div>
+      </div>
+    </div>
+    <div class="view view-started">
+      <p class="eyebrow">CHALLENGE STARTED</p>
+      <div class="num" id="stNum">7</div>
+      <p class="unit" id="stUnit">DAYS</p>
+      <span class="rule"></span>
+      <p class="msg">さあ、今日から始めよう。</p>
+      <p class="msg-sub" id="stSub"></p>
+      <div class="stack">
+        <button class="btn primary" id="closeStartedBtn" type="button">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 確認ダイアログ -->
+<div class="overlay" id="confirmOverlay" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle" aria-hidden="true">
+  <div class="dialog">
+    <h3 id="cfTitle">チャレンジを終了しますか？</h3>
+    <p id="cfBody">進行中の記録はリセットされます。</p>
+    <div class="row">
+      <button class="btn ghost" id="cfCancel" type="button">キャンセル</button>
+      <button class="btn primary" id="cfOk" type="button">終了する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定シート -->
+<div class="sheet-layer">
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<section class="sheet" id="settings" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" aria-hidden="true">
+  <div class="grab"></div>
+  <p class="eyebrow">SETTINGS</p>
+  <h2 id="settingsTitle">抽選範囲</h2>
+  <p class="lead">最短〜最長の日数が、すべて同じ確率で選ばれます。</p>
+  <div class="fields">
+    <div class="field">
+      <label for="minInput">最短日数</label>
+      <div class="stepper" id="minBox">
+        <button type="button" data-field="min" data-delta="-1" aria-label="最短日数を減らす">−</button>
+        <input id="minInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="minErr">
+        <button type="button" data-field="min" data-delta="1" aria-label="最短日数を増やす">+</button>
+      </div>
+      <p class="err" id="minErr" role="alert"></p>
+    </div>
+    <div class="field">
+      <label for="maxInput">最長日数</label>
+      <div class="stepper" id="maxBox">
+        <button type="button" data-field="max" data-delta="-1" aria-label="最長日数を減らす">−</button>
+        <input id="maxInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="maxErr">
+        <button type="button" data-field="max" data-delta="1" aria-label="最長日数を増やす">+</button>
+      </div>
+      <p class="err" id="maxErr" role="alert"></p>
+    </div>
+  </div>
+  <p class="err" id="rangeErr" role="alert"></p>
+  <div class="summary" id="summary"></div>
+  <div class="actions">
+    <button class="btn ghost" id="resetBtn" type="button">初期設定</button>
+    <button class="btn primary" id="doneBtn" type="button">完了</button>
+  </div>
+</section>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/*LOGIC-START*/
+const TAU = Math.PI * 2;
+const LIMITS = { minDays: 1, maxDays: 365, maxCount: 60 };
+const DEFAULTS = { min: 2, max: 7 };
+
+const mod = (x, m) => ((x % m) + m) % m;
+
+// 全角数字なども受け付けるため NFKC 正規化してから厳密に整数判定する
+function parseDays(raw) {
+  const s = String(raw == null ? '' : raw).normalize('NFKC').trim();
+  if (s === '') return { ok: false, error: '数字を入力してください' };
+  if (!/^[0-9]+$/.test(s)) return { ok: false, error: '整数（半角の数字）で入力してください' };
+  const v = parseInt(s, 10);
+  if (v < LIMITS.minDays) return { ok: false, error: '1日以上で入力してください' };
+  if (v > LIMITS.maxDays) return { ok: false, error: LIMITS.maxDays + '日以下で入力してください' };
+  return { ok: true, value: v };
+}
+
+function validateRange(minRaw, maxRaw) {
+  const a = parseDays(minRaw), b = parseDays(maxRaw);
+  const res = { ok: false, min: null, max: null, errors: { min: '', max: '', range: '' } };
+  if (!a.ok) res.errors.min = a.error;
+  if (!b.ok) res.errors.max = b.error;
+  if (a.ok && b.ok) {
+    if (a.value > b.value) {
+      res.errors.range = '最短日数は最長日数以下にしてください';
+    } else if (b.value - a.value + 1 > LIMITS.maxCount) {
+      res.errors.range = '候補は最大' + LIMITS.maxCount + '種類までです（現在' + (b.value - a.value + 1) + '種類）';
+    } else {
+      res.ok = true; res.min = a.value; res.max = b.value;
+    }
+  }
+  return res;
+}
+
+function buildValues(min, max) {
+  const out = [];
+  for (let v = min; v <= max; v++) out.push(v);
+  return out;
+}
+
+function secureUint32() {
+  const c = (typeof globalThis !== 'undefined') && globalThis.crypto;
+  if (c && c.getRandomValues) { const a = new Uint32Array(1); c.getRandomValues(a); return a[0]; }
+  return Math.floor(Math.random() * 4294967296);
+}
+
+// 剰余バイアスを避ける棄却サンプリングで 0..n-1 を完全に等確率で返す
+function randomInt(n, src) {
+  src = src || secureUint32;
+  const limit = Math.floor(4294967296 / n) * n;
+  let x;
+  do { x = src(); } while (x >= limit);
+  return x % n;
+}
+
+// ホイールが rot(rad, 時計回り) だけ回っているとき、上部の指針が指す区画番号
+function indexAtPointer(rot, n) {
+  const seg = TAU / n;
+  return Math.floor((mod(-rot, TAU) + seg / 2) / seg) % n;
+}
+
+// 当選区画(winnerIdx)の中心から ±offsetFrac*区画幅 の位置で止まる最終角度を計算する
+function planSpin({ winnerIdx, n, rot, spins, offsetFrac }) {
+  const seg = TAU / n;
+  const target = winnerIdx * seg + offsetFrac * seg; // 指針が指すべきホイール座標
+  const delta = mod(-target - mod(rot, TAU), TAU);
+  const distance = spins * TAU + delta;
+  return { distance, finalRot: rot + distance };
+}
+
+// 加速(smoothstep) → 等速 → 減速(三次イーズアウト) の位置関数。終端で distance に一致する
+function makeProfile(distance, opt) {
+  const o = Object.assign({ ta: 0.7, tc: 1.0, td: 4.2 }, opt || {});
+  const { ta, tc, td } = o;
+  const vmax = distance / (ta / 2 + tc + td / 3);
+  const T = ta + tc + td;
+  function pos(t) {
+    if (t <= 0) return 0;
+    if (t >= T) return distance;
+    let p;
+    if (t < ta) { const u = t / ta; p = ta * (u * u * u - u * u * u * u / 2); }
+    else if (t < ta + tc) { p = ta / 2 + (t - ta); }
+    else { const u = (t - ta - tc) / td; p = ta / 2 + tc + td * (1 - Math.pow(1 - u, 3)) / 3; }
+    return vmax * p;
+  }
+  return { pos, T, vmax };
+}
+/*LOGIC-END*/
+
+// ---------- 永続化 ----------
+const SKEY = 'keizoku-roulette:settings:v1';
+const CKEY = 'keizoku-roulette:challenge:v1';
+const store = {
+  get(k) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+const $ = id => document.getElementById(id);
+const el = {
+  wrap: $('wheelWrap'), canvas: $('wheel'), pointer: $('pointer'), ring: $('ring'),
+  spin: $('spinBtn'), settingsBtn: $('settingsBtn'), rangeLabel: $('rangeLabel'),
+  strip: $('strip'), stripLabel: $('stripLabel'), stripText: $('stripText'), endBtn: $('endBtn'), bar: $('bar'), barFill: $('barFill'),
+  result: $('result'), resultCard: $('resultCard'), resNum: $('resNum'), resUnit: $('resUnit'), resMsg: $('resMsg'), resNote: $('resNote'),
+  confirmBtn: $('confirmBtn'), againBtn: $('againBtn'), toSettingsBtn: $('toSettingsBtn'),
+  stNum: $('stNum'), stUnit: $('stUnit'), stSub: $('stSub'), closeStartedBtn: $('closeStartedBtn'),
+  cf: $('confirmOverlay'), cfTitle: $('cfTitle'), cfBody: $('cfBody'), cfOk: $('cfOk'), cfCancel: $('cfCancel'),
+  sheet: $('settings'), backdrop: $('sheetBackdrop'),
+  minInput: $('minInput'), maxInput: $('maxInput'), minBox: $('minBox'), maxBox: $('maxBox'),
+  minErr: $('minErr'), maxErr: $('maxErr'), rangeErr: $('rangeErr'), summary: $('summary'),
+  resetBtn: $('resetBtn'), doneBtn: $('doneBtn')
+};
+
+const reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- 状態 ----------
+let range = (() => {
+  const s = store.get(SKEY);
+  if (s) { const v = validateRange(s.min, s.max); if (v.ok) return { min: v.min, max: v.max }; }
+  return { min: DEFAULTS.min, max: DEFAULTS.max };
+})();
+let values = buildValues(range.min, range.max);
+let rot = 0;                 // ホイールの現在角（rad・時計回り）
+let state = 'idle';          // idle | spinning | revealing | result
+let pending = null;          // 抽選結果（確定前）
+let highlight = -1;
+let challenge = (() => {
+  const c = store.get(CKEY);
+  if (c && Number.isInteger(c.days) && c.days >= 1 && c.days <= LIMITS.maxDays && /^\d{4}-\d{2}-\d{2}$/.test(c.start || '')) return c;
+  return null;
+})();
+
+// ---------- ルーレット描画 ----------
+const ctx = el.canvas.getContext('2d');
+const SERIF = getComputedStyle(document.documentElement).getPropertyValue('--serif').trim() || 'serif';
+const GOLD = '#c9ad72', GOLD_HI = '#dcc48d';
+
+function drawWheel() {
+  const n = values.length;
+  const S = el.wrap.clientWidth;
+  if (!S) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const px = Math.round(S * dpr);
+  if (el.canvas.width !== px) { el.canvas.width = px; el.canvas.height = px; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, S, S);
+
+  const c = S / 2, R = c - 3, rimIn = R * 0.925, hubR = R * 0.2;
+  const seg = TAU / n;
+  const ang = i => -Math.PI / 2 + (i - 0.5) * seg; // 区画 i の開始角（canvas座標）
+
+  // ベース円
+  ctx.fillStyle = '#0b0b0b';
+  ctx.beginPath(); ctx.arc(c, c, R, 0, TAU); ctx.fill();
+
+  // 区画
+  for (let i = 0; i < n; i++) {
+    let tone = i % 2 ? '#1c1c1c' : '#131313';
+    if (n % 2 === 1 && i === n - 1) tone = '#181818';
+    ctx.fillStyle = i === highlight ? GOLD : tone;
+    ctx.beginPath();
+    ctx.moveTo(c, c);
+    ctx.arc(c, c, rimIn, ang(i), ang(i) + seg);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 境界線
+  ctx.lineWidth = 1.25;
+  ctx.strokeStyle = 'rgba(201,173,114,.72)';
+  for (let i = 0; i < n; i++) {
+    const a = ang(i);
+    ctx.beginPath();
+    ctx.moveTo(c + Math.cos(a) * hubR * 0.9, c + Math.sin(a) * hubR * 0.9);
+    ctx.lineTo(c + Math.cos(a) * rimIn, c + Math.sin(a) * rimIn);
+    ctx.stroke();
+  }
+
+  // リム
+  ctx.beginPath(); ctx.arc(c, c, R, 0, TAU); ctx.arc(c, c, rimIn, 0, TAU, true);
+  ctx.fillStyle = '#0d0d0d'; ctx.fill('evenodd');
+  ctx.lineWidth = 2; ctx.strokeStyle = GOLD;
+  ctx.beginPath(); ctx.arc(c, c, R - 1, 0, TAU); ctx.stroke();
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(201,173,114,.55)';
+  ctx.beginPath(); ctx.arc(c, c, rimIn, 0, TAU); ctx.stroke();
+
+  // ペグ（指針が弾く突起）
+  const pegR = Math.max(1.4, Math.min(R * 0.016, 3.2));
+  const pegD = (R + rimIn) / 2;
+  ctx.fillStyle = GOLD_HI;
+  for (let i = 0; i < n; i++) {
+    const a = ang(i);
+    ctx.beginPath(); ctx.arc(c + Math.cos(a) * pegD, c + Math.sin(a) * pegD, pegR, 0, TAU); ctx.fill();
+  }
+
+  // ラベル
+  const digitsMax = String(values[n - 1]).length;
+  const upright = n <= 14;
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) {
+    const v = String(values[i]);
+    const d = v.length;
+    const isWin = i === highlight;
+    const dim = highlight >= 0 && !isWin;
+    const main = isWin ? '#0d0d0d' : (dim ? 'rgba(241,236,225,.4)' : '#f1ece1');
+    const sub = isWin ? '#3a2f14' : (dim ? 'rgba(201,173,114,.4)' : 'rgba(201,173,114,.95)');
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.rotate(i * seg);
+    if (upright) {
+      const r = R * 0.64;
+      const chord = 2 * r * Math.sin(seg / 2);
+      let f = Math.min(R * 0.21, 0.78 * chord / (0.58 * digitsMax + 0.35));
+      f = Math.max(f, 10);
+      ctx.font = '500 ' + f + 'px ' + SERIF;
+      const w1 = ctx.measureText(v).width;
+      const f2 = f * 0.46;
+      ctx.font = '500 ' + f2 + 'px ' + SERIF;
+      const w2 = ctx.measureText('日').width;
+      const gap = f * 0.08;
+      const total = w1 + gap + w2;
+      ctx.textAlign = 'left';
+      ctx.font = '500 ' + f + 'px ' + SERIF; ctx.fillStyle = main;
+      ctx.fillText(v, -total / 2, -r);
+      ctx.font = '500 ' + f2 + 'px ' + SERIF; ctx.fillStyle = sub;
+      ctx.fillText('日', -total / 2 + w1 + gap, -r + f * 0.16);
+    } else {
+      // 区画が多いときは放射方向に文字を並べ、数字同士が重ならないようにする
+      const rMid = R * 0.58;
+      const chord = 2 * rMid * Math.sin(seg / 2);
+      const avail = rimIn * 0.96 - hubR * 1.2;
+      let f = Math.min(R * 0.2, chord * 0.72, avail / (0.58 * d));
+      f = Math.max(f, 6);
+      ctx.font = '500 ' + f + 'px ' + SERIF;
+      ctx.fillStyle = main;
+      ctx.textAlign = 'right';
+      ctx.translate(0, -rimIn * 0.955);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(v, 0, 0);
+    }
+    ctx.restore();
+  }
+}
+
+function applyRot() { el.canvas.style.transform = 'rotate(' + rot + 'rad)'; }
+
+// ---------- 指針（バネ） ----------
+let pAng = 0, pVel = 0;
+function kickPointer(speed) {
+  if (reduced) return;
+  pVel -= 3 + Math.min(Math.abs(speed), 14) * 0.55;
+}
+function stepPointer(dt) {
+  const k = 190, cdamp = 15;
+  pVel += (-k * pAng - cdamp * pVel) * dt;
+  pAng += pVel * dt;
+  if (pAng < -0.6) { pAng = -0.6; if (pVel < 0) pVel = 0; }
+  if (pAng > 0.25) { pAng = 0.25; if (pVel > 0) pVel = 0; }
+  el.pointer.style.transform = 'rotate(' + pAng + 'rad)';
+}
+const pointerAtRest = () => Math.abs(pAng) < 0.0008 && Math.abs(pVel) < 0.01;
+
+// ---------- 回転 ----------
+let anim = null;
+function spin() {
+  if (state !== 'idle') return;
+  state = 'spinning';
+  hideOverlay(el.result);
+  pending = null;
+  if (highlight !== -1) { highlight = -1; drawWheel(); }
+  updateUI();
+
+  const n = values.length;
+  const winnerIdx = randomInt(n);                         // ① 先に当選を確定
+  const offsetFrac = (Math.random() * 2 - 1) * 0.36;      // 区画内の停止位置（端に寄りすぎない）
+  const spins = reduced ? 1 : 4 + randomInt(3);
+  const plan = planSpin({ winnerIdx, n, rot, spins, offsetFrac }); // ② 結果から停止角度を逆算
+  const prof = makeProfile(plan.distance, reduced ? { ta: 0.3, tc: 0.3, td: 1.6 } : undefined);
+
+  anim = { winnerIdx, plan, prof, startRot: rot, t0: null, last: null, lastIdx: indexAtPointer(rot, n), lastRot: rot, done: false };
+  requestAnimationFrame(frame);
+}
+
+function frame(now) {
+  const a = anim;
+  if (!a) return;
+  if (a.t0 === null) { a.t0 = now; a.last = now; }
+  const dt = Math.min(0.05, Math.max(0.001, (now - a.last) / 1000));
+  a.last = now;
+
+  if (!a.done) {
+    const t = (now - a.t0) / 1000;
+    const prevRot = rot;
+    rot = a.startRot + a.prof.pos(t);
+    applyRot();
+    const idx = indexAtPointer(rot, values.length);
+    if (idx !== a.lastIdx) { a.lastIdx = idx; kickPointer((rot - prevRot) / dt); }
+    if (t >= a.prof.T) { a.done = true; finishSpin(); }
+  }
+  stepPointer(dt);
+  if (!a.done || !pointerAtRest()) requestAnimationFrame(frame);
+  else { pAng = 0; pVel = 0; el.pointer.style.transform = ''; anim = null; }
+}
+
+function finishSpin() {
+  const a = anim, n = values.length;
+  rot = mod(a.plan.finalRot, TAU);
+  applyRot();
+  // 見た目の停止位置から求めた区画が、先に決めた当選と必ず一致することを検証
+  const seen = indexAtPointer(rot, n);
+  if (seen !== a.winnerIdx) console.error('pointer/result mismatch', seen, a.winnerIdx);
+  pending = values[a.winnerIdx];
+  highlight = a.winnerIdx;
+  state = 'revealing';
+  drawWheel();
+  el.ring.classList.remove('go'); el.wrap.classList.remove('flash');
+  void el.ring.offsetWidth;
+  el.ring.classList.add('go'); el.wrap.classList.add('flash');
+  if (navigator.vibrate) { try { navigator.vibrate([18, 40, 30]); } catch (e) {} }
+  updateUI();
+  setTimeout(showResult, reduced ? 200 : 950);
+}
+
+// ---------- UI ----------
+function updateUI() {
+  const busy = state !== 'idle';
+  el.spin.disabled = busy;
+  el.spin.textContent = state === 'spinning' ? 'SPINNING' : 'SPIN';
+  el.settingsBtn.disabled = busy;
+  el.rangeLabel.textContent = range.min + ' – ' + range.max + ' 日';
+}
+
+function showOverlay(o) { o.classList.add('open'); o.setAttribute('aria-hidden', 'false'); o.inert = false; }
+function hideOverlay(o) { o.classList.remove('open'); o.setAttribute('aria-hidden', 'true'); o.inert = true; }
+[el.result, el.cf].forEach(hideOverlay);
+el.sheet.inert = true;
+
+const unitLabel = d => d === 1 ? 'DAY' : 'DAYS';
+
+function showResult() {
+  if (state !== 'revealing' || pending == null) return;
+  state = 'result';
+  el.resultCard.dataset.mode = 'result';
+  el.resNum.textContent = pending;
+  el.resUnit.textContent = unitLabel(pending);
+  el.resMsg.textContent = pending + '日間、継続に挑戦しよう。';
+  const info = challenge ? challengeInfo(challenge) : null;
+  el.resNote.hidden = !(info && !info.done);
+  showOverlay(el.result);
+  setTimeout(() => el.confirmBtn.focus({ preventScroll: true }), 350);
+  updateUI();
+}
+
+function confirmResult() {
+  if (state !== 'result' || pending == null) return;
+  const today = new Date();
+  challenge = { days: pending, start: ymd(today) };
+  store.set(CKEY, challenge);
+  const info = challengeInfo(challenge);
+  el.stNum.textContent = challenge.days;
+  el.stUnit.textContent = unitLabel(challenge.days);
+  el.stSub.textContent = 'Day 1 ・ ' + jp(info.start) + ' 〜 ' + jp(info.end);
+  el.resultCard.dataset.mode = 'started';
+  // 同じ .open のままモードだけ切り替えるため、アニメーションを再生し直す
+  el.result.classList.remove('open'); void el.result.offsetWidth; el.result.classList.add('open');
+  pending = null;
+  state = 'idle';
+  renderStrip();
+  updateUI();
+  setTimeout(() => el.closeStartedBtn.focus({ preventScroll: true }), 350);
+}
+
+function closeStarted() {
+  hideOverlay(el.result);
+  if (highlight !== -1) { highlight = -1; drawWheel(); }
+  el.spin.focus({ preventScroll: true });
+}
+
+// ---------- チャレンジ表示 ----------
+const pad2 = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const parseYmd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const jp = d => (d.getMonth() + 1) + '月' + d.getDate() + '日';
+function challengeInfo(c) {
+  const start = parseYmd(c.start);
+  const now = new Date();
+  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = Math.max(1, Math.round((t0 - start) / 864e5) + 1);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + c.days - 1);
+  return { start, end, day, done: day > c.days };
+}
+function renderStrip() {
+  const s = el.strip;
+  if (!challenge) {
+    s.className = 'strip idle';
+    el.stripLabel.textContent = 'READY';
+    el.stripText.textContent = 'SPINで、挑戦する日数を決めよう。';
+    el.endBtn.hidden = true; el.bar.hidden = true;
+    return;
+  }
+  const info = challengeInfo(challenge);
+  s.className = 'strip';
+  el.bar.hidden = false;
+  if (info.done) {
+    el.stripLabel.textContent = 'COMPLETE';
+    el.stripText.textContent = challenge.days + '日間チャレンジ、お疲れさま。';
+    el.endBtn.textContent = 'クリア';
+    el.barFill.style.width = '100%';
+  } else {
+    el.stripLabel.textContent = 'IN PROGRESS';
+    el.stripText.innerHTML = '';
+    el.stripText.append(challenge.days + '日間 ・ Day ' + info.day + ' / ' + challenge.days);
+    const sm = document.createElement('small');
+    sm.textContent = '〜 ' + jp(info.end);
+    el.stripText.append(sm);
+    el.endBtn.textContent = '終了';
+    el.barFill.style.width = Math.min(100, info.day / challenge.days * 100) + '%';
+  }
+  el.endBtn.hidden = false;
+}
+
+// ---------- 確認ダイアログ ----------
+function ask(title, body, ok) {
+  return new Promise(res => {
+    el.cfTitle.textContent = title; el.cfBody.textContent = body; el.cfOk.textContent = ok;
+    const done = v => { el.cfOk.onclick = el.cfCancel.onclick = null; hideOverlay(el.cf); res(v); };
+    el.cfOk.onclick = () => done(true);
+    el.cfCancel.onclick = () => done(false);
+    showOverlay(el.cf);
+    setTimeout(() => el.cfCancel.focus({ preventScroll: true }), 300);
+  });
+}
+async function endChallenge() {
+  if (!challenge) return;
+  const info = challengeInfo(challenge);
+  if (!info.done) {
+    const ok = await ask('チャレンジを終了しますか？', '進行中の記録はリセットされます。', '終了する');
+    if (!ok) return;
+  }
+  challenge = null; store.del(CKEY); renderStrip();
+}
+
+// ---------- 設定 ----------
+let sheetOpen = false;
+function openSettings() {
+  if (state !== 'idle' || sheetOpen) return;
+  sheetOpen = true;
+  el.minInput.value = range.min; el.maxInput.value = range.max;
+  renderValidation(validateRange(range.min, range.max));
+  el.sheet.inert = false;
+  el.sheet.classList.add('open'); el.backdrop.classList.add('open');
+  el.sheet.setAttribute('aria-hidden', 'false');
+}
+function closeSettings() {
+  if (!sheetOpen) return;
+  sheetOpen = false;
+  // 不正な入力が残っていたら、適用済みの値に戻して閉じる
+  el.sheet.classList.remove('open'); el.backdrop.classList.remove('open');
+  el.sheet.setAttribute('aria-hidden', 'true'); el.sheet.inert = true;
+  if (document.activeElement && el.sheet.contains(document.activeElement)) document.activeElement.blur();
+}
+function renderValidation(v) {
+  el.minErr.textContent = v.errors.min; el.maxErr.textContent = v.errors.max; el.rangeErr.textContent = v.errors.range;
+  el.minBox.classList.toggle('bad', !!(v.errors.min || v.errors.range));
+  el.maxBox.classList.toggle('bad', !!(v.errors.max || v.errors.range));
+  const n = v.ok ? v.max - v.min + 1 : (range.max - range.min + 1);
+  el.summary.innerHTML = '';
+  const l = document.createElement('span'); l.innerHTML = '抽選対象 <b>' + n + '種類</b>';
+  const r = document.createElement('span'); r.innerHTML = '各 <b>' + (100 / n).toFixed(1) + '%</b>';
+  el.summary.append(l, r);
+  el.doneBtn.disabled = !v.ok;
+}
+function applyRange(min, max) {
+  range = { min, max };
+  store.set(SKEY, range);
+  values = buildValues(min, max);
+  highlight = -1; pending = null;
+  drawWheel();
+  updateUI();
+}
+function onRangeInput() {
+  const v = validateRange(el.minInput.value, el.maxInput.value);
+  renderValidation(v);
+  if (v.ok && (v.min !== range.min || v.max !== range.max)) applyRange(v.min, v.max);
+}
+function stepField(field, delta) {
+  const input = field === 'min' ? el.minInput : el.maxInput;
+  const cur = parseDays(input.value);
+  const base = cur.ok ? cur.value : (field === 'min' ? range.min : range.max);
+  input.value = Math.max(LIMITS.minDays, Math.min(LIMITS.maxDays, base + delta));
+  onRangeInput();
+}
+
+// ---------- イベント ----------
+el.spin.addEventListener('click', spin);
+el.settingsBtn.addEventListener('click', openSettings);
+el.backdrop.addEventListener('click', closeSettings);
+el.doneBtn.addEventListener('click', closeSettings);
+el.resetBtn.addEventListener('click', () => {
+  el.minInput.value = DEFAULTS.min; el.maxInput.value = DEFAULTS.max; onRangeInput();
+});
+el.minInput.addEventListener('input', onRangeInput);
+el.maxInput.addEventListener('input', onRangeInput);
+[el.minInput, el.maxInput].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); i.blur(); } }));
+el.sheet.querySelectorAll('.stepper button').forEach(b => {
+  b.addEventListener('click', () => stepField(b.dataset.field, Number(b.dataset.delta)));
+});
+el.confirmBtn.addEventListener('click', confirmResult);
+el.againBtn.addEventListener('click', () => {
+  if (state !== 'result') return;
+  state = 'idle'; spin();
+});
+el.toSettingsBtn.addEventListener('click', () => {
+  if (state !== 'result') return;
+  state = 'idle'; pending = null;
+  hideOverlay(el.result);
+  if (highlight !== -1) { highlight = -1; drawWheel(); }
+  updateUI();
+  setTimeout(openSettings, 120);
+});
+el.closeStartedBtn.addEventListener('click', closeStarted);
+el.endBtn.addEventListener('click', endChallenge);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (sheetOpen) closeSettings(); }
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renderStrip(); });
+
+// iPhoneのソフトウェアキーボードで設定シートの下側が隠れないよう、キーボードの高さ分だけ持ち上げる
+function syncKeyboardInset() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  let kb = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+  if (vv.scale > 1.01 || kb < 80) kb = 0;      // ピンチ拡大中・URLバーの伸縮程度では何もしない
+  el.sheet.style.setProperty('--kb', kb + 'px');
+}
+if (window.visualViewport) {
+  visualViewport.addEventListener('resize', syncKeyboardInset);
+  visualViewport.addEventListener('scroll', syncKeyboardInset);
+}
+
+let rs = 0;
+new ResizeObserver(() => { cancelAnimationFrame(rs); rs = requestAnimationFrame(drawWheel); }).observe(el.wrap);
+
+// ---------- 初期化 ----------
+drawWheel();
+applyRot();
+renderStrip();
+updateUI();
+})();
+</script>
+</body>
+</html>
