@@ -427,6 +427,160 @@ function makeProfile(distance, opt) {
 }
 /*LOGIC-END*/
 
+/*SCHEDULE-LOGIC-START*/
+// ===== 月間スケジュール：純粋ロジック（DOM非依存・テスト対象） =====
+const SCHED_DEFAULTS = { min: 2, max: 7 };
+const SCHED_LIMITS = { minDays: 1, maxDays: 31, minYear: 1970, maxYear: 2100 };
+const pad2 = n => String(n).padStart(2, '0');
+
+function parseIntervalDays(raw) {
+  const s = String(raw == null ? '' : raw).normalize('NFKC').trim();
+  if (s === '') return { ok: false, error: '数字を入力してください' };
+  if (!/^[0-9]+$/.test(s)) return { ok: false, error: '整数（半角の数字）で入力してください' };
+  const v = parseInt(s, 10);
+  if (v < SCHED_LIMITS.minDays) return { ok: false, error: '1日以上で入力してください' };
+  if (v > SCHED_LIMITS.maxDays) return { ok: false, error: SCHED_LIMITS.maxDays + '日以下で入力してください' };
+  return { ok: true, value: v };
+}
+
+function validateInterval(minRaw, maxRaw) {
+  const a = parseIntervalDays(minRaw), b = parseIntervalDays(maxRaw);
+  const res = { ok: false, min: null, max: null, errors: { min: '', max: '', range: '' } };
+  if (!a.ok) res.errors.min = a.error;
+  if (!b.ok) res.errors.max = b.error;
+  if (a.ok && b.ok) {
+    if (a.value > b.value) res.errors.range = '最短間隔は最長間隔以下にしてください';
+    else { res.ok = true; res.min = a.value; res.max = b.value; }
+  }
+  return res;
+}
+
+function parseYear(raw) {
+  const s = String(raw == null ? '' : raw).normalize('NFKC').trim();
+  if (!/^[0-9]{4}$/.test(s)) return { ok: false, error: SCHED_LIMITS.minYear + '〜' + SCHED_LIMITS.maxYear + 'の年を4桁で入力してください' };
+  const v = parseInt(s, 10);
+  if (v < SCHED_LIMITS.minYear || v > SCHED_LIMITS.maxYear) return { ok: false, error: SCHED_LIMITS.minYear + '〜' + SCHED_LIMITS.maxYear + 'の範囲で入力してください' };
+  return { ok: true, value: v };
+}
+
+const isLeapYear = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const daysInMonth = (y, m) => [31, isLeapYear(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+const ymKey = (y, m) => y + '-' + pad2(m);
+// 月曜=0 … 日曜=6
+const weekdayMon0 = (y, m, d) => (new Date(y, m - 1, d).getDay() + 6) % 7;
+
+// 月曜始まりのカレンダー用グリッド（週ごとの配列。月外のマスは null）
+function buildMonthGrid(y, m) {
+  const L = daysInMonth(y, m);
+  const cells = new Array(weekdayMon0(y, m, 1)).fill(null);
+  for (let d = 1; d <= L; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+
+// ok[d] = 実行日(または月初)dから先を、間隔lo〜hiだけで月末Lちょうどまで有効に終えられるか。
+// 月末から逆向きに求めるので、各ステップで「最終的に有効になる候補」だけを選べる。
+function viability(L, lo, hi) {
+  const ok = new Array(L + 1).fill(false);
+  for (let d = L - 1; d >= 1; d--) {
+    for (let s = lo; s <= hi && d + s <= L; s++) {
+      const n = d + s;
+      if (n === L || ok[n]) { ok[d] = true; break; }
+    }
+  }
+  return ok;
+}
+// 最初の実行日として選べる日（実行日は最低1回必要なので、月初から直接月末へは進めない）
+function firstChoices(L, lo, hi, ok) {
+  const out = [];
+  for (let s = lo; s <= hi; s++) { const n = 1 + s; if (n >= L) break; if (ok[n]) out.push(n); }
+  return out;
+}
+const isFeasible = (L, lo, hi) => firstChoices(L, lo, hi, viability(L, lo, hi)).length > 0;
+
+// 生成できない理由と、直し方の提案（提案は実際に生成可能になる値だけ）
+function explainInfeasible(L, lo, hi) {
+  const span = L - 1;
+  let reason;
+  if (span < 2 * lo) {
+    reason = L + '日間の月では、月初から月末までの' + span + '日間に実行日を1回入れると、最短間隔' + lo + '日を2回分（' + (2 * lo) + '日）満たせません。';
+  } else if (lo === hi) {
+    reason = '月初から月末までの' + span + '日間が' + lo + '日の倍数にならないため、' + lo + '日ちょうど間隔では月末に合わせられません。';
+  } else {
+    reason = '月初（1日）から月末（' + L + '日）までの' + span + '日間を、' + lo + '〜' + hi + '日間隔で区切る方法がありません。';
+  }
+  const suggest = {};
+  for (let h = hi + 1; h <= SCHED_LIMITS.maxDays; h++) if (isFeasible(L, lo, h)) { suggest.max = h; break; }
+  for (let l = lo - 1; l >= SCHED_LIMITS.minDays; l--) if (isFeasible(L, l, hi)) { suggest.min = l; break; }
+  const parts = [];
+  if (suggest.max) parts.push('最長間隔を' + suggest.max + '日にする');
+  if (suggest.min) parts.push('最短間隔を' + suggest.min + '日にする');
+  const hint = parts.length ? parts.join('、または') + 'と生成できます。' : '';
+  return { reason, hint, suggest };
+}
+
+// スケジュール生成。
+//  1) 月末から逆向きに「有効に終われる日」を求める
+//  2) 月初から順に、次の実行日を「最終的に有効になる候補」だけから一様乱数で選ぶ
+//  3) 月末までの日数が最短〜最長に収まる日は「ここで終了」も候補になる
+// どの候補を選んでも必ず有効なスケジュールになるので、やり直し・無限ループは起きない。
+function generateSchedule(o) {
+  const L = daysInMonth(o.year, o.month);
+  const lo = o.min, hi = o.max;
+  const pick = o.pick || randomInt;
+  const ok = viability(L, lo, hi);
+  if (!firstChoices(L, lo, hi, ok).length) {
+    return Object.assign({ ok: false, length: L }, explainInfeasible(L, lo, hi));
+  }
+  const dates = [];
+  let cur = 1;
+  for (let guard = 0; guard <= L; guard++) {
+    const cands = [];
+    for (let s = lo; s <= hi; s++) {
+      const n = cur + s;
+      if (n > L) break;
+      if (n === L) { if (dates.length > 0) cands.push(s); }   // 終了候補
+      else if (ok[n]) cands.push(s);                           // 継続候補
+    }
+    if (cands.length === 0) break;                             // 理論上は到達しない
+    const s = cands[pick(cands.length)];
+    if (cur + s === L) return { ok: true, dates, length: L };
+    cur += s;
+    dates.push(cur);
+  }
+  return { ok: false, length: L, reason: 'スケジュールを生成できませんでした。', hint: '', suggest: {} };
+}
+
+// 保存データの復元時などに使う検証（3つの間隔条件・月内・昇順をすべて確認）
+function validateSchedule(sch) {
+  const bad = reason => ({ ok: false, reason });
+  if (!sch || !Number.isInteger(sch.year) || !Number.isInteger(sch.month) || sch.month < 1 || sch.month > 12) return bad('年月が不正です');
+  if (!Number.isInteger(sch.min) || !Number.isInteger(sch.max) || sch.min < 1 || sch.max < sch.min || sch.max > SCHED_LIMITS.maxDays) return bad('間隔が不正です');
+  const L = daysInMonth(sch.year, sch.month), d = sch.dates;
+  if (!Array.isArray(d) || d.length < 1 || d.length > L) return bad('実行日がありません');
+  let prev = 1;
+  for (let i = 0; i < d.length; i++) {
+    const x = d[i];
+    if (!Number.isInteger(x) || x <= prev || x >= L) return bad('実行日が月の範囲外、または昇順ではありません');
+    const gap = x - prev;
+    if (gap < sch.min || gap > sch.max) return bad((i === 0 ? '月初から最初の実行日まで' : '実行日の間隔') + 'が範囲外です');
+    prev = x;
+  }
+  const tail = L - prev;
+  if (tail < sch.min || tail > sch.max) return bad('最後の実行日から月末までが範囲外です');
+  return { ok: true };
+}
+
+// 表示用：月初→最初、各実行日の間、最後→月末 の日数
+function scheduleIntervals(dates, L) {
+  const gaps = [];
+  for (let i = 1; i < dates.length; i++) gaps.push(dates[i] - dates[i - 1]);
+  return { first: dates[0] - 1, gaps, last: L - dates[dates.length - 1] };
+}
+/*SCHEDULE-LOGIC-END*/
+
 // ---------- 永続化 ----------
 const SKEY = 'keizoku-roulette:settings:v1';
 const CKEY = 'keizoku-roulette:challenge:v1';
@@ -717,7 +871,6 @@ function closeStarted() {
 }
 
 // ---------- チャレンジ表示 ----------
-const pad2 = n => String(n).padStart(2, '0');
 const ymd = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
 const parseYmd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
 const jp = d => (d.getMonth() + 1) + '月' + d.getDate() + '日';
