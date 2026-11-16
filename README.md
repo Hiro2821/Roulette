@@ -27,3 +27,18 @@ node tests/logic.test.js
 ## GitHub Pages で公開する
 
 リポジトリの **Settings → Pages → Build and deployment** で、Source を `Deploy from a branch`、Branch を `main` / `/ (root)` に設定します。
+
+
+## 月間スケジュールモード
+画面下のタブで「ルーレット」と「月間スケジュール」を切り替えます。
+
+- 初期設定は最短2日・最長7日。月初→最初の実行日、実行日どうし、最後の実行日→月末のすべてが範囲内になるスケジュールだけを生成します。
+- 月末から逆算して「最後まで有効に終えられる日」だけを候補にし、その中から乱数で選ぶため、やり直し・無限ループはありません。
+- 対象年月（年・月・前後月・今月に戻る）、最短/最長間隔を変更できます。生成できない設定は理由と直し方を表示します。
+- 「保存」で localStorage に保存します（キー: `keizoku-schedule:data:v1` / `keizoku-schedule:settings:v1` / `keizoku-app:mode:v1`）。ルーレットのデータには影響しません。
+
+### テスト
+```sh
+node tests/logic.test.js
+node tests/schedule.test.js
+```

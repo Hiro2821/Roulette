@@ -25,9 +25,10 @@
   --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
   --serif:ui-serif,"New York","Hiragino Mincho ProN","Yu Mincho",Georgia,"Times New Roman",serif;
   --ease:cubic-bezier(.16,1,.3,1);
-  --s:min(84vw,max(220px,calc(100svh - 372px)),500px);
+  --s:min(84vw,max(220px,calc(100svh - 448px)),500px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--text)}
 body{
   font-family:var(--sans);
@@ -47,7 +48,7 @@ button:disabled{cursor:default}
   position:relative;overflow:hidden;
   min-height:100vh;min-height:100svh;
   display:flex;flex-direction:column;align-items:center;
-  padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 20px) calc(env(safe-area-inset-bottom) + 18px) calc(env(safe-area-inset-left) + 20px);
+  padding:calc(env(safe-area-inset-top) + 14px) calc(env(safe-area-inset-right) + 20px) calc(env(safe-area-inset-bottom) + 92px) calc(env(safe-area-inset-left) + 20px);
   background:radial-gradient(120% 60% at 50% 38%,rgba(201,173,114,.07),rgba(201,173,114,0) 62%),var(--bg);
 }
 .top{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
@@ -202,8 +203,117 @@ button:disabled{cursor:default}
 .summary b{color:var(--text);font-weight:600}
 .sheet .actions{display:grid;grid-template-columns:auto 1fr;gap:12px;margin-top:20px}
 
+
+/* ---------- モード切替（下部タブ） ---------- */
+.tabbar{
+  position:fixed;z-index:10;left:50%;bottom:calc(env(safe-area-inset-bottom) + 10px);transform:translateX(-50%);
+  width:min(calc(100% - 28px),440px);display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:5px;border-radius:22px;
+  background:rgba(18,18,18,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid var(--line);box-shadow:0 18px 40px -16px rgba(0,0,0,.9);
+}
+.tab{
+  height:54px;border-radius:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.1em;
+  transition:color .25s,background .25s,transform .14s var(--ease);
+}
+.tab svg{width:22px;height:22px}
+.tab[aria-current="page"]{color:var(--gold-hi);background:rgba(201,173,114,.11)}
+.tab:active:not(:disabled){transform:scale(.96)}
+.tab:disabled{opacity:.45}
+@media (hover:hover){.tab:hover:not(:disabled):not([aria-current="page"]){color:var(--text)}}
+.toast{
+  position:fixed;z-index:15;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translate(-50%,12px);opacity:0;pointer-events:none;
+  padding:11px 18px;border-radius:999px;background:#1c1b18;border:1px solid var(--gold-dim);color:var(--gold-hi);
+  font-size:13.5px;letter-spacing:.06em;transition:opacity .3s,transform .4s var(--ease);white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- 月間スケジュール ---------- */
+.sched{flex:1;width:100%;max-width:560px;display:flex;flex-direction:column;gap:14px;padding:6px 0 4px}
+.month-nav{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:8px}
+.icon-btn{
+  width:48px;height:48px;border-radius:50%;border:1px solid var(--gold-dim);color:var(--gold-hi);display:grid;place-items:center;
+  transition:background .25s,border-color .25s,transform .15s var(--ease),opacity .25s;
+}
+.icon-btn svg{width:20px;height:20px}
+.icon-btn:active:not(:disabled){transform:scale(.92)}
+.icon-btn:disabled{opacity:.3}
+@media (hover:hover){.icon-btn:hover:not(:disabled){background:rgba(201,173,114,.1);border-color:var(--gold)}}
+.month-title{height:56px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:background .25s,transform .15s var(--ease)}
+.month-title:active{transform:scale(.98)}
+@media (hover:hover){.month-title:hover{background:rgba(255,255,255,.035)}}
+.month-text{font-family:var(--serif);font-size:25px;font-weight:500;letter-spacing:.04em;line-height:1.15}
+.month-meta{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;letter-spacing:.2em;color:var(--gold)}
+.month-meta svg{width:12px;height:12px}
+
+.cal{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:12px 10px 10px}
+.cal-head,.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px 2px}
+.cal-head span{text-align:center;font-size:11px;font-weight:500;letter-spacing:.12em;color:var(--muted);padding:4px 0 8px}
+.cal-head span:nth-child(n+6){color:#8a8579}
+.cell{
+  position:relative;width:100%;max-width:54px;aspect-ratio:1/1;justify-self:center;display:grid;place-items:center;border-radius:50%;
+  font-family:var(--serif);font-size:17px;color:#d8d2c4;font-variant-numeric:lining-nums tabular-nums;
+}
+.cell.empty{visibility:hidden}
+.cell.sat,.cell.sun{color:#aaa497}
+.cell.today{color:var(--gold-hi);box-shadow:inset 0 0 0 1px var(--gold-dim)}
+.cell.run{background:var(--gold);color:#121212;font-weight:700;cursor:pointer;box-shadow:0 0 0 1px var(--gold),0 8px 18px -8px rgba(201,173,114,.65);transition:transform .15s var(--ease)}
+.cell.run:active{transform:scale(.94)}
+.cell.run.today{box-shadow:0 0 0 2px var(--panel),0 0 0 3px var(--gold-hi),0 8px 18px -8px rgba(201,173,114,.65)}
+.cell.pop{animation:cellPop .65s var(--ease) both;animation-delay:calc(var(--i,0)*70ms)}
+@keyframes cellPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+.cal-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 6px 0;font-size:12px;color:var(--muted);min-height:38px}
+.legend{display:inline-flex;align-items:center;gap:6px;letter-spacing:.06em}
+.legend .dot{margin-left:10px}.legend .dot:first-child{margin-left:0}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--gold)}
+.dot.ring{background:none;box-shadow:inset 0 0 0 1.5px var(--gold-dim)}
+
+.sched-card{padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.card-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.chip{display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;font-size:11.5px;font-weight:600;letter-spacing:.12em;border:1px solid var(--gold-dim);color:var(--gold-hi)}
+.chip.saved{background:rgba(201,173,114,.13)}
+.chip.draft{border-style:dashed}
+.chip.none{color:var(--muted);border-color:var(--line)}
+.sched-info{margin:9px 0 0;font-size:13px;line-height:1.6;color:var(--muted)}
+.sched-sum{margin:5px 0 0;font-size:16px;line-height:1.5;letter-spacing:.04em}
+.sched-actions{display:grid;grid-template-columns:1.5fr 1fr;gap:12px}
+.notice{margin:0;font-size:12.5px;line-height:1.75;color:var(--muted)}
+.notice.err{color:var(--err)}
+.link.back{align-self:flex-start;padding:6px 2px}
+.list-head{display:flex;justify-content:space-between;align-items:baseline;margin:8px 2px 10px}
+.muted{font-size:12.5px;color:var(--muted)}
+.runs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--panel);overflow:hidden}
+.runs .run{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--line)}
+.runs .run:first-child{border-top:0}
+.run-idx{width:30px;height:30px;border-radius:50%;border:1px solid var(--gold-dim);display:grid;place-items:center;font:600 13px var(--sans);color:var(--gold-hi)}
+.runs .run.end .run-idx{border-style:dashed;color:var(--muted)}
+.run-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px}
+.run-title b{font-family:var(--serif);font-size:18px;font-weight:600}
+.run-title small{font-size:12.5px;color:var(--muted)}
+.run-sub{margin:3px 0 0;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.run-chip{font-size:13px;font-weight:600;color:var(--gold-hi);padding:5px 11px;border-radius:999px;background:rgba(201,173,114,.1);white-space:nowrap}
+.runs .run.flash{animation:rowFlash 1.5s ease}
+@keyframes rowFlash{0%,100%{background:transparent}30%{background:rgba(201,173,114,.18)}}
+.runs.anim .run{animation:fadeUp .6s var(--ease) both;animation-delay:calc(var(--i,0)*55ms + 250ms)}
+.summary.bad{color:var(--err);border-color:rgba(227,154,136,.4)}
+.lbl{margin:14px 0 8px;font-size:12px;color:var(--muted);letter-spacing:.14em}
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.mbtn{height:52px;border-radius:14px;border:1px solid rgba(255,255,255,.13);font:600 16px var(--serif);color:var(--text);transition:background .2s,color .2s,border-color .2s,transform .12s var(--ease)}
+.mbtn:active{transform:scale(.95)}
+.mbtn[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#121212}
+@media (hover:hover){.mbtn:hover:not([aria-pressed="true"]){border-color:var(--gold)}}
+
+@media (max-width:360px){
+  .app{padding-left:calc(env(safe-area-inset-left) + 14px);padding-right:calc(env(safe-area-inset-right) + 14px)}
+  .cal{padding:10px 6px 8px}
+  .cal-head,.cal-grid{gap:4px 1px}
+  .cell{font-size:16px}
+}
 @media (max-height:520px) and (orientation:landscape){
-  :root{--s:max(180px,calc(100svh - 120px))}
+  :root{--s:max(180px,calc(100svh - 176px))}
+  .app{padding-bottom:calc(env(safe-area-inset-bottom) + 66px)}
+  .tab{height:40px;flex-direction:row;gap:8px}
+  .toast{bottom:calc(env(safe-area-inset-bottom) + 70px)}
   .stage{flex-direction:row;gap:48px;padding:6px 0}
   .controls{width:auto}
   .strip{width:min(320px,40vw)}
@@ -212,6 +322,7 @@ button:disabled{cursor:default}
   .overlay,.sheet,.sheet-backdrop,.dialog{transition-duration:.01s!important}
   .overlay.open *{animation-duration:.01s!important}
   .ring.go,.wheel-wrap.flash #wheel{animation:none}
+  .cell.pop,.runs.anim .run,.runs .run.flash{animation:none}
 }
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
@@ -219,14 +330,18 @@ button:disabled{cursor:default}
 <body>
 <div class="app">
   <header class="top">
-    <p class="brand">CONTINUITY<b>継続日数ルーレット</b></p>
+    <p class="brand">CONTINUITY<b id="brandTitle">継続日数ルーレット</b></p>
     <button class="pill" id="settingsBtn" type="button" aria-haspopup="dialog" aria-label="抽選範囲の設定を開く">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
       <span id="rangeLabel">2 – 7 日</span>
     </button>
+    <button class="pill" id="schedSettingsBtn" type="button" hidden aria-haspopup="dialog" aria-label="実行間隔の設定を開く">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      <span id="schedRangeLabel">間隔 2 – 7 日</span>
+    </button>
   </header>
 
-  <main class="stage">
+  <main class="stage" id="viewRoulette">
     <div class="wheel-wrap" id="wheelWrap">
       <canvas id="wheel" role="img" aria-label="日数ルーレット"></canvas>
       <div class="ring" id="ring"></div>
@@ -250,7 +365,54 @@ button:disabled{cursor:default}
       </section>
     </div>
   </main>
+
+  <main class="sched" id="viewSchedule" hidden>
+    <div class="month-nav">
+      <button class="icon-btn" id="prevMonth" type="button" aria-label="前の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+      <button class="month-title" id="monthTitle" type="button" aria-haspopup="dialog" aria-label="対象年月を選ぶ">
+        <span class="month-text" id="monthText">2026年11月</span>
+        <span class="month-meta"><span id="monthMeta">30日間</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg></span>
+      </button>
+      <button class="icon-btn" id="nextMonth" type="button" aria-label="次の月"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
+    </div>
+
+    <section class="cal" aria-label="月間カレンダー">
+      <div class="cal-head" aria-hidden="true"><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span></div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-foot">
+        <span class="legend"><i class="dot"></i>実行予定日<i class="dot ring"></i>今日</span>
+        <button class="link" id="todayBtn" type="button" hidden>今月に戻る</button>
+      </div>
+    </section>
+
+    <section class="sched-card" aria-live="polite">
+      <div class="card-row">
+        <span class="chip none" id="schedChip">未生成</span>
+        <button class="link" id="schedDelete" type="button" hidden>保存を削除</button>
+      </div>
+      <p class="sched-info" id="schedInfo"></p>
+      <p class="sched-sum" id="schedSummary" hidden></p>
+    </section>
+
+    <div class="sched-actions">
+      <button class="btn primary" id="genBtn" type="button">スケジュールを生成</button>
+      <button class="btn ghost" id="saveBtn" type="button">保存</button>
+    </div>
+    <p class="notice" id="schedNotice" role="status" hidden></p>
+    <button class="link back" id="backToSaved" type="button" hidden>保存済みのスケジュールに戻す</button>
+
+    <section class="list" id="listSection" hidden>
+      <div class="list-head"><p class="eyebrow">実行日一覧</p><span class="muted" id="listCount"></span></div>
+      <ol class="runs" id="runList"></ol>
+    </section>
+  </main>
 </div>
+
+<nav class="tabbar" aria-label="モード切り替え">
+  <button class="tab" type="button" data-mode="roulette" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><circle cx="12" cy="13.5" r="1.8"/><path d="M12 6v3.2M12 17.8V21M4.5 13.5h3.2M16.3 13.5h3.2"/><path d="M12 1.6l-1.9 2.9h3.8z" fill="currentColor"/></svg><span>継続日数ルーレット</span></button>
+  <button class="tab" type="button" data-mode="schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r="1" fill="currentColor"/><circle cx="12" cy="14.5" r="1" fill="currentColor"/><circle cx="15.5" cy="14.5" r="1" fill="currentColor"/></svg><span>月間スケジュール</span></button>
+</nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 結果画面 -->
 <div class="overlay" id="result" role="dialog" aria-modal="true" aria-labelledby="resLabel" aria-hidden="true">
@@ -329,6 +491,73 @@ button:disabled{cursor:default}
   <div class="actions">
     <button class="btn ghost" id="resetBtn" type="button">初期設定</button>
     <button class="btn primary" id="doneBtn" type="button">完了</button>
+  </div>
+</section>
+
+<section class="sheet" id="schedSheet" role="dialog" aria-modal="true" aria-labelledby="schedSheetTitle" aria-hidden="true">
+  <div class="grab"></div>
+  <p class="eyebrow">SETTINGS</p>
+  <h2 id="schedSheetTitle">実行間隔</h2>
+  <p class="lead">月初から最初の実行日、実行日どうし、最後の実行日から月末まで。すべてこの範囲の間隔になります。</p>
+  <div class="fields">
+    <div class="field">
+      <label for="sMinInput">最短間隔</label>
+      <div class="stepper" id="sMinBox">
+        <button type="button" data-sfield="min" data-delta="-1" aria-label="最短間隔を減らす">−</button>
+        <input id="sMinInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="sMinErr">
+        <button type="button" data-sfield="min" data-delta="1" aria-label="最短間隔を増やす">+</button>
+      </div>
+      <p class="err" id="sMinErr" role="alert"></p>
+    </div>
+    <div class="field">
+      <label for="sMaxInput">最長間隔</label>
+      <div class="stepper" id="sMaxBox">
+        <button type="button" data-sfield="max" data-delta="-1" aria-label="最長間隔を減らす">−</button>
+        <input id="sMaxInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="sMaxErr">
+        <button type="button" data-sfield="max" data-delta="1" aria-label="最長間隔を増やす">+</button>
+      </div>
+      <p class="err" id="sMaxErr" role="alert"></p>
+    </div>
+  </div>
+  <p class="err" id="sRangeErr" role="alert"></p>
+  <div class="summary" id="sInfo"></div>
+  <div class="actions">
+    <button class="btn ghost" id="sReset" type="button">初期設定</button>
+    <button class="btn primary" id="sDone" type="button">完了</button>
+  </div>
+</section>
+
+<section class="sheet" id="monthSheet" role="dialog" aria-modal="true" aria-labelledby="monthSheetTitle" aria-hidden="true">
+  <div class="grab"></div>
+  <p class="eyebrow">TARGET MONTH</p>
+  <h2 id="monthSheetTitle">対象年月</h2>
+  <div class="field" style="margin-top:14px">
+    <label for="mYearInput">年</label>
+    <div class="stepper" id="mYearBox">
+      <button type="button" data-delta="-1" aria-label="前の年">−</button>
+      <input id="mYearInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" aria-describedby="mYearErr">
+      <button type="button" data-delta="1" aria-label="翌年">+</button>
+    </div>
+    <p class="err" id="mYearErr" role="alert"></p>
+  </div>
+  <p class="lbl">月</p>
+  <div class="mgrid" id="mGrid">
+    <button class="mbtn" type="button" data-m="1" aria-pressed="false">1月</button>
+    <button class="mbtn" type="button" data-m="2" aria-pressed="false">2月</button>
+    <button class="mbtn" type="button" data-m="3" aria-pressed="false">3月</button>
+    <button class="mbtn" type="button" data-m="4" aria-pressed="false">4月</button>
+    <button class="mbtn" type="button" data-m="5" aria-pressed="false">5月</button>
+    <button class="mbtn" type="button" data-m="6" aria-pressed="false">6月</button>
+    <button class="mbtn" type="button" data-m="7" aria-pressed="false">7月</button>
+    <button class="mbtn" type="button" data-m="8" aria-pressed="false">8月</button>
+    <button class="mbtn" type="button" data-m="9" aria-pressed="false">9月</button>
+    <button class="mbtn" type="button" data-m="10" aria-pressed="false">10月</button>
+    <button class="mbtn" type="button" data-m="11" aria-pressed="false">11月</button>
+    <button class="mbtn" type="button" data-m="12" aria-pressed="false">12月</button>
+  </div>
+  <div class="actions">
+    <button class="btn ghost" id="mToday" type="button">今月に戻る</button>
+    <button class="btn primary" id="mDone" type="button">この年月にする</button>
   </div>
 </section>
 </div>
@@ -821,6 +1050,7 @@ function updateUI() {
   el.spin.disabled = busy;
   el.spin.textContent = state === 'spinning' ? 'SPINNING' : 'SPIN';
   el.settingsBtn.disabled = busy;
+  tabButtons.forEach(b => { b.disabled = busy; });
   el.rangeLabel.textContent = range.min + ' – ' + range.max + ' 日';
 }
 
@@ -987,7 +1217,7 @@ function stepField(field, delta) {
 // ---------- イベント ----------
 el.spin.addEventListener('click', spin);
 el.settingsBtn.addEventListener('click', openSettings);
-el.backdrop.addEventListener('click', closeSettings);
+el.backdrop.addEventListener('click', () => closeAnySheet());
 el.doneBtn.addEventListener('click', closeSettings);
 el.resetBtn.addEventListener('click', () => {
   el.minInput.value = DEFAULTS.min; el.maxInput.value = DEFAULTS.max; onRangeInput();
@@ -1014,7 +1244,7 @@ el.toSettingsBtn.addEventListener('click', () => {
 el.closeStartedBtn.addEventListener('click', closeStarted);
 el.endBtn.addEventListener('click', endChallenge);
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (sheetOpen) closeSettings(); }
+  if (e.key === 'Escape') closeAnySheet();
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) renderStrip(); });
 
@@ -1024,7 +1254,7 @@ function syncKeyboardInset() {
   if (!vv) return;
   let kb = Math.round(window.innerHeight - vv.height - vv.offsetTop);
   if (vv.scale > 1.01 || kb < 80) kb = 0;      // ピンチ拡大中・URLバーの伸縮程度では何もしない
-  el.sheet.style.setProperty('--kb', kb + 'px');
+  document.querySelectorAll('.sheet').forEach(sh => sh.style.setProperty('--kb', kb + 'px'));
 }
 if (window.visualViewport) {
   visualViewport.addEventListener('resize', syncKeyboardInset);
@@ -1034,11 +1264,375 @@ if (window.visualViewport) {
 let rs = 0;
 new ResizeObserver(() => { cancelAnimationFrame(rs); rs = requestAnimationFrame(drawWheel); }).observe(el.wrap);
 
+// ================= 月間スケジュール UI =================
+const MODEK = 'keizoku-app:mode:v1';
+const SSKEY = 'keizoku-schedule:settings:v1';
+const SDKEY = 'keizoku-schedule:data:v1';
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+const tabButtons = Array.from(document.querySelectorAll('.tab'));
+const sc = {
+  view: $('viewSchedule'), roulette: $('viewRoulette'), brand: $('brandTitle'),
+  pill: $('schedSettingsBtn'), pillLabel: $('schedRangeLabel'),
+  prev: $('prevMonth'), next: $('nextMonth'), title: $('monthTitle'), monthText: $('monthText'), monthMeta: $('monthMeta'),
+  grid: $('calGrid'), todayBtn: $('todayBtn'),
+  chip: $('schedChip'), info: $('schedInfo'), sum: $('schedSummary'), del: $('schedDelete'),
+  gen: $('genBtn'), save: $('saveBtn'), notice: $('schedNotice'), back: $('backToSaved'),
+  listSec: $('listSection'), list: $('runList'), count: $('listCount'), toast: $('toast')
+};
+
+// --- 状態 ---
+let sSet = (() => {
+  const s = store.get(SSKEY);
+  if (s) { const v = validateInterval(s.min, s.max); if (v.ok) return { min: v.min, max: v.max }; }
+  return { min: SCHED_DEFAULTS.min, max: SCHED_DEFAULTS.max };
+})();
+// 保存済みスケジュール（年月ごと）。復元時は3つの間隔条件を再検証し、壊れたデータは読み捨てる
+function loadSavedSchedules() {
+  const raw = store.get(SDKEY), out = {};
+  if (raw && raw.items && typeof raw.items === 'object') {
+    Object.keys(raw.items).forEach(k => {
+      const it = raw.items[k];
+      if (it && k === ymKey(it.year, it.month) && typeof it.createdAt === 'string' && validateSchedule(it).ok) {
+        out[k] = { year: it.year, month: it.month, min: it.min, max: it.max, dates: it.dates.slice(), createdAt: it.createdAt };
+      }
+    });
+  }
+  return out;
+}
+let saved = loadSavedSchedules();
+const drafts = {};                       // 生成直後の未保存スケジュール（メモリのみ）
+const t0 = new Date();
+let vy = Math.min(SCHED_LIMITS.maxYear, Math.max(SCHED_LIMITS.minYear, t0.getFullYear()));
+let vm = t0.getMonth() + 1;
+let mode = 'roulette';
+
+const persistSaved = () => store.set(SDKEY, { version: 1, items: saved });
+const updatePills = () => { sc.pillLabel.textContent = '間隔 ' + sSet.min + ' – ' + sSet.max + ' 日'; };
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? '—' : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+let toastTimer = 0;
+function toast(msg) {
+  sc.toast.textContent = msg; sc.toast.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => sc.toast.classList.remove('show'), 2200);
+}
+function setNotice(msg, kind) {
+  sc.notice.hidden = !msg; sc.notice.textContent = msg || '';
+  sc.notice.className = 'notice' + (kind ? ' ' + kind : '');
+}
+
+// --- 描画 ---
+function renderSchedule(opts) {
+  const animate = !!(opts && opts.animate);
+  const key = ymKey(vy, vm), L = daysInMonth(vy, vm);
+  const t = new Date(), ty = t.getFullYear(), tm = t.getMonth() + 1, td = t.getDate();
+  const draft = drafts[key] || null, savedItem = saved[key] || null, cur = draft || savedItem;
+  const feas = isFeasible(L, sSet.min, sSet.max);
+
+  sc.monthText.textContent = vy + '年' + vm + '月';
+  sc.monthMeta.textContent = L + '日間';
+  sc.todayBtn.hidden = (vy === ty && vm === tm);
+  sc.prev.disabled = (vy === SCHED_LIMITS.minYear && vm === 1);
+  sc.next.disabled = (vy === SCHED_LIMITS.maxYear && vm === 12);
+
+  // カレンダー（月曜始まり）
+  const runIdx = {};
+  if (cur) cur.dates.forEach((d, i) => { runIdx[d] = i; });
+  sc.grid.textContent = '';
+  const frag = document.createDocumentFragment();
+  buildMonthGrid(vy, vm).forEach(week => week.forEach((d, col) => {
+    const c = document.createElement('div');
+    if (d === null) { c.className = 'cell empty'; c.setAttribute('aria-hidden', 'true'); frag.appendChild(c); return; }
+    let cls = 'cell';
+    if (col === 5) cls += ' sat';
+    if (col === 6) cls += ' sun';
+    if (vy === ty && vm === tm && d === td) cls += ' today';
+    c.textContent = d;
+    if (d in runIdx) {
+      cls += ' run';
+      if (animate) { cls += ' pop'; c.style.setProperty('--i', runIdx[d]); }
+      c.dataset.day = d; c.setAttribute('role', 'button'); c.tabIndex = 0;
+      c.setAttribute('aria-label', vm + '月' + d + '日 実行予定日');
+    }
+    c.className = cls;
+    frag.appendChild(c);
+  }));
+  sc.grid.appendChild(frag);
+
+  // 状態表示
+  if (cur) {
+    sc.chip.textContent = draft ? '未保存' : '保存済み';
+    sc.chip.className = 'chip ' + (draft ? 'draft' : 'saved');
+    sc.info.textContent = '間隔 ' + cur.min + '〜' + cur.max + '日 ・ 生成 ' + fmtDateTime(cur.createdAt);
+    const gaps = scheduleIntervals(cur.dates, L).gaps;
+    sc.sum.hidden = false;
+    sc.sum.textContent = '実行 ' + cur.dates.length + '回' +
+      (gaps.length ? ' ・ 平均 ' + (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) + '日おき' : '');
+  } else {
+    sc.chip.textContent = '未生成'; sc.chip.className = 'chip none';
+    sc.info.textContent = '「スケジュールを生成」で、この月の実行日を決めましょう。';
+    sc.sum.hidden = true;
+  }
+  sc.del.hidden = !savedItem;
+  sc.back.hidden = !(draft && savedItem);
+
+  sc.gen.textContent = cur ? '再生成' : 'スケジュールを生成';
+  sc.gen.disabled = !feas;
+  sc.save.textContent = (cur && !draft) ? '保存済み' : '保存';
+  sc.save.disabled = !draft;
+
+  if (!feas) {
+    const ex = explainInfeasible(L, sSet.min, sSet.max);
+    setNotice(vy + '年' + vm + '月（' + L + '日間）では、間隔' + sSet.min + '〜' + sSet.max + '日のスケジュールを生成できません。' +
+      ex.reason + (ex.hint ? ' ' + ex.hint : ''), 'err');
+  } else if (draft && savedItem) {
+    setNotice('この月には保存済みのスケジュールが別にあります。保存すると置き換わります。', '');
+  } else {
+    setNotice('', '');
+  }
+
+  sc.listSec.hidden = !cur;
+  if (cur) renderRunList(cur, L, animate);
+}
+
+function renderRunList(c, L, animate) {
+  const f = d => vm + '月' + d + '日';
+  const w = d => '（' + WD[new Date(vy, vm - 1, d).getDay()] + '）';
+  sc.list.textContent = '';
+  sc.list.classList.toggle('anim', animate);
+  sc.count.textContent = '全' + c.dates.length + '回';
+  const row = (idxText, title, small, sub, chip, cls, id, i) => {
+    const li = document.createElement('li');
+    li.className = 'run' + (cls ? ' ' + cls : ''); if (id) li.id = id; li.style.setProperty('--i', i);
+    const idx = document.createElement('span'); idx.className = 'run-idx'; idx.textContent = idxText;
+    const main = document.createElement('div'); main.className = 'run-main';
+    const head = document.createElement('div'); head.className = 'run-title';
+    const b = document.createElement('b'); b.textContent = title;
+    const sm = document.createElement('small'); sm.textContent = small;
+    head.append(b, sm);
+    const p = document.createElement('p'); p.className = 'run-sub'; p.textContent = sub;
+    main.append(head, p);
+    const ch = document.createElement('span'); ch.className = 'run-chip'; ch.textContent = chip;
+    li.append(idx, main, ch);
+    return li;
+  };
+  const frag = document.createDocumentFragment();
+  c.dates.forEach((d, i) => {
+    const prev = i === 0 ? 1 : c.dates[i - 1], gap = d - prev;
+    frag.appendChild(row(String(i + 1), f(d), w(d),
+      (i === 0 ? f(1) + '（月初）' : f(prev)) + ' → ' + f(d) + '：' + gap + '日間', gap + '日', '', 'run-' + d, i));
+  });
+  const last = c.dates[c.dates.length - 1], tail = L - last;
+  frag.appendChild(row('終', f(L), '月末' + w(L), f(last) + ' → ' + f(L) + '（月末）：' + tail + '日間', tail + '日', 'end', '', c.dates.length));
+  sc.list.appendChild(frag);
+}
+
+// --- 生成・保存 ---
+async function onGenerate() {
+  const L = daysInMonth(vy, vm);
+  if (!isFeasible(L, sSet.min, sSet.max)) return;
+  const key = ymKey(vy, vm);
+  if (drafts[key]) {
+    const ok = await ask('再生成しますか？', 'まだ保存していない現在のスケジュールは破棄されます。', '再生成する');
+    if (!ok) return;
+  }
+  let res = null, draft = null;
+  for (let attempt = 0; attempt < 5 && !draft; attempt++) {
+    res = generateSchedule({ year: vy, month: vm, min: sSet.min, max: sSet.max });
+    if (!res.ok) break;
+    const cand = { year: vy, month: vm, min: sSet.min, max: sSet.max, dates: res.dates, createdAt: new Date().toISOString() };
+    if (validateSchedule(cand).ok) draft = cand;      // 生成後にも3条件を再検証（常に通る想定）
+  }
+  if (!draft) {
+    setNotice((res && !res.ok ? res.reason + ' ' + (res.hint || '') : 'スケジュールを生成できませんでした。もう一度お試しください。'), 'err');
+    return;
+  }
+  drafts[key] = draft;
+  renderSchedule({ animate: !reduced });
+}
+async function onSave() {
+  const key = ymKey(vy, vm), d = drafts[key];
+  if (!d) return;
+  if (saved[key]) {
+    const ok = await ask('保存済みのスケジュールを置き換えますか？',
+      vy + '年' + vm + '月の保存済みスケジュール（' + saved[key].dates.length + '回）が、表示中のものに置き換わります。', '置き換えて保存');
+    if (!ok) return;
+  }
+  saved[key] = d; delete drafts[key];
+  persistSaved(); renderSchedule(); toast('保存しました');
+}
+async function onDeleteSaved() {
+  const key = ymKey(vy, vm);
+  if (!saved[key]) return;
+  const ok = await ask('保存したスケジュールを削除しますか？', vy + '年' + vm + '月の保存済みスケジュールが削除されます。', '削除する');
+  if (!ok) return;
+  delete saved[key]; persistSaved(); renderSchedule(); toast('削除しました');
+}
+
+// --- 月の移動 ---
+function setMonth(y, m) { vy = y; vm = m; renderSchedule(); }
+function shiftMonth(delta) {
+  let y = vy, m = vm + delta;
+  if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+  if (y < SCHED_LIMITS.minYear || y > SCHED_LIMITS.maxYear) return;
+  setMonth(y, m);
+}
+
+// --- シート（共通の開閉） ---
+function makeSheet(sheetEl, onClose) {
+  let isOpen = false;
+  sheetEl.inert = true;
+  return {
+    get isOpen() { return isOpen; },
+    open() {
+      if (isOpen) return;
+      isOpen = true; sheetEl.inert = false; sheetEl.setAttribute('aria-hidden', 'false');
+      sheetEl.classList.add('open'); el.backdrop.classList.add('open');
+    },
+    close() {
+      if (!isOpen) return;
+      isOpen = false;
+      sheetEl.classList.remove('open'); el.backdrop.classList.remove('open');
+      sheetEl.setAttribute('aria-hidden', 'true'); sheetEl.inert = true;
+      if (document.activeElement && sheetEl.contains(document.activeElement)) document.activeElement.blur();
+      if (onClose) onClose();
+    }
+  };
+}
+const intervalSheet = makeSheet($('schedSheet'), () => renderSchedule());
+const monthSheet = makeSheet($('monthSheet'));
+function closeAnySheet() { closeSettings(); intervalSheet.close(); monthSheet.close(); }
+
+// --- 実行間隔の設定シート ---
+const is = {
+  min: $('sMinInput'), max: $('sMaxInput'), minBox: $('sMinBox'), maxBox: $('sMaxBox'),
+  minErr: $('sMinErr'), maxErr: $('sMaxErr'), rangeErr: $('sRangeErr'), info: $('sInfo'), done: $('sDone'), reset: $('sReset')
+};
+function renderIntervalValidation(v) {
+  is.minErr.textContent = v.errors.min; is.maxErr.textContent = v.errors.max; is.rangeErr.textContent = v.errors.range;
+  is.minBox.classList.toggle('bad', !!(v.errors.min || v.errors.range));
+  is.maxBox.classList.toggle('bad', !!(v.errors.max || v.errors.range));
+  is.done.disabled = !v.ok;
+  const lo = v.ok ? v.min : sSet.min, hi = v.ok ? v.max : sSet.max, L = daysInMonth(vy, vm);
+  if (isFeasible(L, lo, hi)) {
+    is.info.classList.remove('bad');
+    is.info.textContent = vy + '年' + vm + '月（' + L + '日間）：この間隔で生成できます。';
+  } else {
+    const ex = explainInfeasible(L, lo, hi);
+    is.info.classList.add('bad');
+    is.info.textContent = vy + '年' + vm + '月（' + L + '日間）：' + ex.reason + (ex.hint ? ' ' + ex.hint : '');
+  }
+}
+function onIntervalInput() {
+  const v = validateInterval(is.min.value, is.max.value);
+  renderIntervalValidation(v);
+  if (v.ok && (v.min !== sSet.min || v.max !== sSet.max)) {
+    sSet = { min: v.min, max: v.max };
+    store.set(SSKEY, sSet); updatePills();
+  }
+}
+function openIntervalSheet() {
+  if (state !== 'idle') return;
+  is.min.value = sSet.min; is.max.value = sSet.max;
+  renderIntervalValidation(validateInterval(sSet.min, sSet.max));
+  intervalSheet.open();
+}
+function stepInterval(field, delta) {
+  const input = field === 'min' ? is.min : is.max;
+  const p = parseIntervalDays(input.value);
+  const base = p.ok ? p.value : (field === 'min' ? sSet.min : sSet.max);
+  input.value = Math.max(SCHED_LIMITS.minDays, Math.min(SCHED_LIMITS.maxDays, base + delta));
+  onIntervalInput();
+}
+
+// --- 対象年月の選択シート ---
+const ms = {
+  year: $('mYearInput'), box: $('mYearBox'), err: $('mYearErr'),
+  btns: Array.from(document.querySelectorAll('.mbtn')), today: $('mToday'), done: $('mDone')
+};
+let pendingYear = vy;
+function markMonthButtons() { ms.btns.forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.m) === vm))); }
+function onYearInput() {
+  const p = parseYear(ms.year.value);
+  ms.err.textContent = p.ok ? '' : p.error;
+  ms.box.classList.toggle('bad', !p.ok);
+  ms.done.disabled = !p.ok;
+  if (p.ok) pendingYear = p.value;
+  return p.ok;
+}
+function openMonthSheet() {
+  pendingYear = vy; ms.year.value = vy; onYearInput(); markMonthButtons();
+  monthSheet.open();
+}
+
+// --- モード切替 ---
+function applyMode(m, persist) {
+  if (state !== 'idle') return;
+  mode = m;
+  sc.roulette.hidden = m !== 'roulette'; sc.view.hidden = m !== 'schedule';
+  el.settingsBtn.hidden = m !== 'roulette'; sc.pill.hidden = m !== 'schedule';
+  sc.brand.textContent = m === 'roulette' ? '継続日数ルーレット' : '月間スケジュール';
+  tabButtons.forEach(b => { if (b.dataset.mode === m) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  if (m === 'schedule') renderSchedule(); else renderStrip();
+  if (persist) store.set(MODEK, m);
+  window.scrollTo(0, 0);
+}
+
+// --- イベント ---
+tabButtons.forEach(b => b.addEventListener('click', () => { if (b.dataset.mode !== mode) applyMode(b.dataset.mode, true); }));
+sc.pill.addEventListener('click', openIntervalSheet);
+sc.prev.addEventListener('click', () => shiftMonth(-1));
+sc.next.addEventListener('click', () => shiftMonth(1));
+sc.title.addEventListener('click', openMonthSheet);
+sc.todayBtn.addEventListener('click', () => { const t = new Date(); setMonth(t.getFullYear(), t.getMonth() + 1); });
+sc.gen.addEventListener('click', onGenerate);
+sc.save.addEventListener('click', onSave);
+sc.del.addEventListener('click', onDeleteSaved);
+sc.back.addEventListener('click', () => { delete drafts[ymKey(vy, vm)]; renderSchedule(); });
+function flashRow(day) {
+  const row = document.getElementById('run-' + day);
+  if (!row) return;
+  row.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+  row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+}
+sc.grid.addEventListener('click', e => { const c = e.target.closest('.cell.run'); if (c) flashRow(c.dataset.day); });
+sc.grid.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const c = e.target.closest('.cell.run'); if (c) { e.preventDefault(); flashRow(c.dataset.day); }
+});
+
+is.min.addEventListener('input', onIntervalInput);
+is.max.addEventListener('input', onIntervalInput);
+[is.min, is.max, ms.year].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); i.blur(); } }));
+document.querySelectorAll('#schedSheet .stepper button').forEach(b => b.addEventListener('click', () => stepInterval(b.dataset.sfield, Number(b.dataset.delta))));
+is.done.addEventListener('click', () => intervalSheet.close());
+is.reset.addEventListener('click', () => { is.min.value = SCHED_DEFAULTS.min; is.max.value = SCHED_DEFAULTS.max; onIntervalInput(); });
+
+ms.year.addEventListener('input', onYearInput);
+ms.box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  const p = parseYear(ms.year.value), base = p.ok ? p.value : pendingYear;
+  ms.year.value = Math.max(SCHED_LIMITS.minYear, Math.min(SCHED_LIMITS.maxYear, base + Number(b.dataset.delta)));
+  onYearInput();
+}));
+ms.btns.forEach(b => b.addEventListener('click', () => {
+  if (!onYearInput()) return;
+  setMonth(pendingYear, Number(b.dataset.m)); monthSheet.close();
+}));
+ms.done.addEventListener('click', () => { if (!onYearInput()) return; setMonth(pendingYear, vm); monthSheet.close(); });
+ms.today.addEventListener('click', () => { const t = new Date(); setMonth(t.getFullYear(), t.getMonth() + 1); monthSheet.close(); });
+
+function initSchedule() {
+  updatePills();
+  applyMode(store.get(MODEK) === 'schedule' ? 'schedule' : 'roulette', false);
+}
+
 // ---------- 初期化 ----------
 drawWheel();
 applyRot();
 renderStrip();
 updateUI();
+initSchedule();
 })();
 </script>
 </body>
