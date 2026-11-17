@@ -303,11 +303,51 @@ button:disabled{cursor:default}
 .mbtn[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#121212}
 @media (hover:hover){.mbtn:hover:not([aria-pressed="true"]){border-color:var(--gold)}}
 
+/* ---- 抽選演出 ---- */
+.draw{scroll-margin-bottom:calc(env(safe-area-inset-bottom) + 88px);position:relative;padding:13px 16px 12px;border:1px solid var(--gold-dim);border-radius:20px;background:linear-gradient(180deg,#171612,var(--panel));overflow:hidden}
+.draw-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.draw-step{white-space:nowrap;font-size:12px;font-weight:600;letter-spacing:.18em;color:var(--gold-hi);font-variant-numeric:tabular-nums}
+.reel{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0 2px;min-height:84px}
+.reel-label{font-size:12px;letter-spacing:.14em;color:var(--muted)}
+.reel-num{display:flex;align-items:baseline;gap:8px;font-family:var(--serif);color:var(--text);transition:filter .12s,opacity .12s,color .3s}
+.reel-num .mo{font-size:18px;color:var(--muted)}
+.reel-num b{font-size:50px;line-height:1.05;font-weight:600;font-variant-numeric:lining-nums tabular-nums;min-width:1.2ch;text-align:center}
+.reel-num small{font-size:15px;color:var(--muted);min-width:2.4em}
+.reel-num.fast{filter:blur(1.1px);opacity:.82}
+.reel-num.locked{color:var(--gold-hi);text-shadow:0 0 28px rgba(201,173,114,.55)}
+.reel::before{content:"";position:absolute;left:50%;top:54%;width:180px;height:110px;margin:-55px 0 0 -90px;border-radius:50%;background:radial-gradient(closest-side,rgba(201,173,114,.28),transparent);opacity:0;transition:opacity .35s;pointer-events:none}
+.reel.glow::before{opacity:1}
+.parts{position:absolute;left:50%;top:56%;width:0;height:0;pointer-events:none}
+.parts i{position:absolute;left:0;top:0;width:var(--sz,4px);height:var(--sz,4px);margin:calc(var(--sz,4px)/-2);border-radius:50%;background:var(--gold-hi);opacity:0;animation:spark var(--dur,.9s) var(--ease) forwards}
+@keyframes spark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}}
+.cands{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;min-height:28px;margin:2px 0 10px}
+.cands span{padding:4px 9px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;transition:background .12s,color .12s,border-color .12s}
+.cands span.on{border-color:var(--gold);color:var(--gold-hi);background:rgba(201,173,114,.12)}
+.cands span.win{background:var(--gold);border-color:var(--gold);color:#121212;font-weight:700}
+.cands span.done{border-color:var(--gold-dim);color:var(--gold-hi)}
+.cands.many{display:block;text-align:center;font-size:12.5px;color:var(--muted)}
+.dbar{position:relative;height:4px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.dbar i{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,var(--gold-dim),var(--gold-hi));transition:width .6s var(--ease)}
+.draw-count{display:flex;justify-content:space-between;margin:8px 0 10px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.draw-actions{display:grid;grid-template-columns:1fr 1.5fr;gap:12px}
+.draw.done .draw-actions,.draw.done .dbar,.draw.done .draw-count{display:none}
+.draw.done .reel-num b{font-size:48px}
+.draw.done .cands{margin-bottom:2px}
+.draw.enter{animation:fadeUp .5s var(--ease) both}
+.cell.cand{box-shadow:inset 0 0 0 1px var(--gold-dim);color:var(--gold-hi)}
+.cell.pick{background:rgba(201,173,114,.24);box-shadow:inset 0 0 0 1.5px var(--gold);color:var(--gold-hi)}
+.cell{transition:background .12s,box-shadow .12s,color .12s}
+#viewSchedule.drawing .cell.run{cursor:default}
+#viewSchedule.drawing .sched-card,#viewSchedule.drawing .sched-actions,#viewSchedule.drawing .notice,#viewSchedule.drawing .back,#viewSchedule.drawing .list{display:none}
+
 @media (max-width:360px){
   .app{padding-left:calc(env(safe-area-inset-left) + 14px);padding-right:calc(env(safe-area-inset-right) + 14px)}
   .cal{padding:10px 6px 8px}
   .cal-head,.cal-grid{gap:4px 1px}
   .cell{font-size:16px}
+  .draw{padding-left:13px;padding-right:13px}
+  .draw .eyebrow{letter-spacing:.2em;white-space:nowrap}
+  .draw-step{letter-spacing:.06em}
 }
 @media (max-height:520px) and (orientation:landscape){
   :root{--s:max(180px,calc(100svh - 176px))}
@@ -322,7 +362,8 @@ button:disabled{cursor:default}
   .overlay,.sheet,.sheet-backdrop,.dialog{transition-duration:.01s!important}
   .overlay.open *{animation-duration:.01s!important}
   .ring.go,.wheel-wrap.flash #wheel{animation:none}
-  .cell.pop,.runs.anim .run,.runs .run.flash{animation:none}
+  .cell.pop,.runs.anim .run,.runs .run.flash,.draw.enter{animation:none}
+  .reel-num.fast{filter:none}
 }
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
@@ -382,6 +423,22 @@ button:disabled{cursor:default}
       <div class="cal-foot">
         <span class="legend"><i class="dot"></i>実行予定日<i class="dot ring"></i>今日</span>
         <button class="link" id="todayBtn" type="button" hidden>今月に戻る</button>
+      </div>
+    </section>
+
+    <section class="draw" id="drawPanel" hidden aria-live="polite">
+      <div class="draw-top"><p class="eyebrow" id="drawTitle">MONTHLY SCHEDULE</p><span class="draw-step" id="drawStep">STEP 1 / 1</span></div>
+      <div class="reel" id="drawReel">
+        <span class="reel-label" id="drawLabel">初回実行日の抽選</span>
+        <div class="reel-num" id="drawNum"><span class="mo" id="drawMo"></span><b id="drawDay">—</b><small id="drawWd"></small></div>
+        <div class="parts" id="drawParts" aria-hidden="true"></div>
+      </div>
+      <div class="cands" id="drawCands"></div>
+      <div class="dbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="drawBarBox"><i id="drawBar"></i></div>
+      <p class="draw-count"><span id="drawDone">抽選済み：0日分</span><span id="drawLeft">残り：0日分</span></p>
+      <div class="draw-actions">
+        <button class="btn ghost" id="drawCancel" type="button">中止</button>
+        <button class="btn primary" id="drawSkip" type="button">スキップ</button>
       </div>
     </section>
 
@@ -750,6 +807,34 @@ function explainInfeasible(L, lo, hi) {
   return { reason, hint, suggest };
 }
 
+// 1ステップ分の候補（歩幅）。cur=現在日、count=すでに決めた実行日の数。
+// 「継続候補」は最終的に有効になる日だけ、月末ちょうどに着く歩幅は「ここで終了」候補（実行日が1回以上あるときのみ）。
+function stepCandidates(L, lo, hi, ok, cur, count) {
+  const cands = [];
+  for (let s = lo; s <= hi; s++) {
+    const n = cur + s;
+    if (n > L) break;
+    if (n === L) { if (count > 0) cands.push(s); }   // 終了候補
+    else if (ok[n]) cands.push(s);                   // 継続候補
+  }
+  return cands;
+}
+
+// 抽選演出用：生成済みの実行日 dates を「1回ずつの抽選」に分解する。
+// 各ステップの candidates は実際の抽選と同じ候補（日付）、chosen は当選日。最後のステップは chosen = 月末（＝ここで終了）。
+// 演出は乱数を引き直さず、この結果をそのまま表示するだけ。
+function buildDrawSteps(L, lo, hi, dates) {
+  const ok = viability(L, lo, hi);
+  const steps = [];
+  for (let i = 0; i <= dates.length; i++) {
+    const from = i === 0 ? 1 : dates[i - 1];
+    const candidates = stepCandidates(L, lo, hi, ok, from, i).map(s => from + s);
+    const chosen = i < dates.length ? dates[i] : L;
+    steps.push({ index: i, from, candidates, chosen, final: i === dates.length, valid: candidates.indexOf(chosen) >= 0 });
+  }
+  return steps;
+}
+
 // スケジュール生成。
 //  1) 月末から逆向きに「有効に終われる日」を求める
 //  2) 月初から順に、次の実行日を「最終的に有効になる候補」だけから一様乱数で選ぶ
@@ -766,13 +851,7 @@ function generateSchedule(o) {
   const dates = [];
   let cur = 1;
   for (let guard = 0; guard <= L; guard++) {
-    const cands = [];
-    for (let s = lo; s <= hi; s++) {
-      const n = cur + s;
-      if (n > L) break;
-      if (n === L) { if (dates.length > 0) cands.push(s); }   // 終了候補
-      else if (ok[n]) cands.push(s);                           // 継続候補
-    }
+    const cands = stepCandidates(L, lo, hi, ok, cur, dates.length);
     if (cands.length === 0) break;                             // 理論上は到達しない
     const s = cands[pick(cands.length)];
     if (cur + s === L) return { ok: true, dates, length: L };
@@ -1277,6 +1356,9 @@ const sc = {
   grid: $('calGrid'), todayBtn: $('todayBtn'),
   chip: $('schedChip'), info: $('schedInfo'), sum: $('schedSummary'), del: $('schedDelete'),
   gen: $('genBtn'), save: $('saveBtn'), notice: $('schedNotice'), back: $('backToSaved'),
+  panel: $('drawPanel'), dTitle: $('drawTitle'), dStep: $('drawStep'), dReel: $('drawReel'), dLabel: $('drawLabel'), dNum: $('drawNum'),
+  dMo: $('drawMo'), dDay: $('drawDay'), dWd: $('drawWd'), dParts: $('drawParts'), dCands: $('drawCands'), dBar: $('drawBar'), dBarBox: $('drawBarBox'),
+  dDone: $('drawDone'), dLeft: $('drawLeft'), dCancel: $('drawCancel'), dSkip: $('drawSkip'),
   listSec: $('listSection'), list: $('runList'), count: $('listCount'), toast: $('toast')
 };
 
@@ -1322,24 +1404,12 @@ function setNotice(msg, kind) {
   sc.notice.className = 'notice' + (kind ? ' ' + kind : '');
 }
 
-// --- 描画 ---
-function renderSchedule(opts) {
-  const animate = !!(opts && opts.animate);
-  const key = ymKey(vy, vm), L = daysInMonth(vy, vm);
+// カレンダー描画。runIdx: 日→実行日の順番。popFrom: その番号以降の実行日をフェードインさせる（null なら演出なし）。
+const cellEls = {};
+function buildGrid(runIdx, popFrom) {
   const t = new Date(), ty = t.getFullYear(), tm = t.getMonth() + 1, td = t.getDate();
-  const draft = drafts[key] || null, savedItem = saved[key] || null, cur = draft || savedItem;
-  const feas = isFeasible(L, sSet.min, sSet.max);
-
-  sc.monthText.textContent = vy + '年' + vm + '月';
-  sc.monthMeta.textContent = L + '日間';
-  sc.todayBtn.hidden = (vy === ty && vm === tm);
-  sc.prev.disabled = (vy === SCHED_LIMITS.minYear && vm === 1);
-  sc.next.disabled = (vy === SCHED_LIMITS.maxYear && vm === 12);
-
-  // カレンダー（月曜始まり）
-  const runIdx = {};
-  if (cur) cur.dates.forEach((d, i) => { runIdx[d] = i; });
   sc.grid.textContent = '';
+  Object.keys(cellEls).forEach(k => delete cellEls[k]);
   const frag = document.createDocumentFragment();
   buildMonthGrid(vy, vm).forEach(week => week.forEach((d, col) => {
     const c = document.createElement('div');
@@ -1351,14 +1421,36 @@ function renderSchedule(opts) {
     c.textContent = d;
     if (d in runIdx) {
       cls += ' run';
-      if (animate) { cls += ' pop'; c.style.setProperty('--i', runIdx[d]); }
+      if (popFrom !== null && runIdx[d] >= popFrom) { cls += ' pop'; c.style.setProperty('--i', runIdx[d] - popFrom); }
       c.dataset.day = d; c.setAttribute('role', 'button'); c.tabIndex = 0;
       c.setAttribute('aria-label', vm + '月' + d + '日 実行予定日');
     }
     c.className = cls;
+    cellEls[d] = c;
     frag.appendChild(c);
   }));
   sc.grid.appendChild(frag);
+}
+
+// --- 描画 ---
+function renderSchedule(opts) {
+  const animate = !!(opts && opts.animate);
+  const key = ymKey(vy, vm), L = daysInMonth(vy, vm);
+  const t = new Date(), ty = t.getFullYear(), tm = t.getMonth() + 1, td = t.getDate();
+  const draft = drafts[key] || null, savedItem = saved[key] || null, cur = draft || savedItem;
+  const feas = isFeasible(L, sSet.min, sSet.max);
+
+  if (!(opts && opts.keepDone) && !drawing) sc.panel.hidden = true;
+  sc.monthText.textContent = vy + '年' + vm + '月';
+  sc.monthMeta.textContent = L + '日間';
+  sc.todayBtn.hidden = (vy === ty && vm === tm);
+  sc.prev.disabled = (vy === SCHED_LIMITS.minYear && vm === 1);
+  sc.next.disabled = (vy === SCHED_LIMITS.maxYear && vm === 12);
+
+  // カレンダー（月曜始まり）
+  const runIdx = {};
+  if (cur) cur.dates.forEach((d, i) => { runIdx[d] = i; });
+  buildGrid(runIdx, animate ? 0 : null);
 
   // 状態表示
   if (cur) {
@@ -1428,28 +1520,225 @@ function renderRunList(c, L, animate) {
   sc.list.appendChild(frag);
 }
 
+// ================= 抽選演出 =================
+// 抽選結果（draft と steps）は演出の開始前に確定済み。演出はその結果を1ステップずつ見せるだけで、乱数は引き直さない。
+// ここで使う Math.random は紙吹雪の飛び方など見た目専用で、当選には一切関与しない。
+let drawing = null;          // 実行中の演出（null なら停止中）
+let generating = false;      // 確認ダイアログを含む生成処理中（二重実行の防止）
+const buzz = p => { if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} } };
+const wdOf = d => WD[new Date(vy, vm - 1, d).getDay()];
+
+function setDrawLock(on) {
+  sc.view.classList.toggle('drawing', on);
+  [sc.prev, sc.next, sc.title, sc.pill, sc.todayBtn, sc.del, sc.gen, sc.save, sc.back].forEach(b => { b.disabled = on; });
+  tabButtons.forEach(b => { b.disabled = on; });
+}
+function drawWait(run, ms) {
+  return new Promise(res => {
+    run.wake = () => { clearTimeout(t); run.wake = null; res(); };
+    const t = setTimeout(run.wake, ms);
+  }).then(async () => { while (run.paused && !run.cancelled && !run.skip) await new Promise(r => setTimeout(r, 80)); });
+}
+function sparkle(n, spread, big) {
+  if (reduced) return;
+  const box = sc.dParts, frag = document.createDocumentFragment();
+  for (let i = 0; i < n; i++) {
+    const p = document.createElement('i'), ang = Math.random() * Math.PI * 2, dist = spread * (.45 + Math.random() * .55);
+    p.style.setProperty('--dx', Math.round(Math.cos(ang) * dist) + 'px');
+    p.style.setProperty('--dy', Math.round(Math.sin(ang) * dist * .75 - 8) + 'px');
+    p.style.setProperty('--sz', (big ? 3 + Math.random() * 3.5 : 2.5 + Math.random() * 2.5).toFixed(1) + 'px');
+    p.style.setProperty('--dur', (.7 + Math.random() * .5).toFixed(2) + 's');
+    frag.appendChild(p);
+  }
+  box.appendChild(frag);
+  setTimeout(() => { while (box.firstChild) box.removeChild(box.firstChild); }, 1400);
+}
+function pulse(el, from, ms) {
+  if (reduced || !el.animate) return;
+  try { el.animate([{ transform: 'scale(' + from + ')' }, { transform: 'scale(1)' }], { duration: ms, easing: 'cubic-bezier(.16,1,.3,1)' }); } catch (e) {}
+}
+function showDay(d, fast) {
+  sc.dMo.textContent = vm + '月';
+  sc.dDay.textContent = d;
+  sc.dWd.textContent = '（' + wdOf(d) + '）';
+  sc.dNum.classList.toggle('fast', !!fast && !reduced);
+}
+function setProgress(stepNo, total, doneRuns, totalRuns) {
+  sc.dStep.textContent = 'STEP ' + stepNo + ' / ' + total;
+  sc.dDone.textContent = '抽選済み：' + doneRuns + '日分';
+  sc.dLeft.textContent = '残り：' + (totalRuns - doneRuns) + '日分';
+  const pct = Math.round((stepNo - 1) / total * 100);
+  sc.dBar.style.width = pct + '%'; sc.dBarBox.setAttribute('aria-valuenow', String(pct));
+}
+// 1ステップ分の切り替え列：最後が必ず当選の候補になる。後半ほど間隔が伸び、最後の1コマは少し長く止まる。
+function tickPlan(m, chosenIdx, first) {
+  if (reduced) return [{ idx: chosenIdx, ms: 140 }];
+  if (m === 1) return [{ idx: 0, ms: 380 }];
+  const n = (first ? 13 : 10) + Math.min(m, 6), out = [];
+  for (let t = 0; t < n; t++) {
+    const r = t / (n - 1);
+    let ms = 46 + Math.pow(r, 3) * 300;
+    if (t === n - 2) ms += 60;
+    if (t === n - 1) ms += 200;          // 停止直前のため
+    out.push({ idx: (((chosenIdx - (n - 1 - t)) % m) + m) % m, ms: Math.round(ms) });
+  }
+  return out;
+}
+
+async function runDraw(draft, steps) {
+  const run = { skip: false, cancelled: false, paused: false, wake: null };
+  drawing = run;
+  const L = daysInMonth(vy, vm), total = steps.length, totalRuns = draft.dates.length;
+  const confirmed = [];
+  const runIdx = () => { const m = {}; confirmed.forEach((d, i) => { m[d] = i; }); return m; };
+  setDrawLock(true);
+  setNotice('', '');
+  sc.panel.className = 'draw enter'; sc.panel.hidden = false;
+  sc.dTitle.textContent = 'MONTHLY SCHEDULE';
+  sc.dCancel.disabled = false; sc.dSkip.disabled = false;
+  buildGrid({}, null);
+  requestAnimationFrame(() => sc.panel.scrollIntoView({ block: 'end', behavior: reduced ? 'auto' : 'smooth' }));
+
+  for (let i = 0; i < total && !run.skip && !run.cancelled; i++) {
+    const st = steps[i], m = st.candidates.length;
+    const chosenIdx = st.candidates.indexOf(st.chosen);
+    setProgress(i + 1, total, confirmed.length, totalRuns);
+    sc.dLabel.textContent = st.final ? '月末までの最終判定' : (i === 0 ? '初回実行日の抽選' : (i + 1) + '回目の実行日の抽選');
+    sc.dNum.classList.remove('locked'); sc.dReel.classList.remove('glow');
+    // 候補の表示（カレンダーと候補チップ）
+    sc.dCands.textContent = ''; sc.dCands.classList.toggle('many', m > 12);
+    const chips = [];
+    if (m > 12) {
+      sc.dCands.textContent = '候補 ' + st.candidates[0] + '日〜' + st.candidates[m - 1] + '日（' + m + '日）';
+    } else {
+      st.candidates.forEach(d => {
+        const c = document.createElement('span'); c.textContent = d === L ? '月末' + d + '日' : vm + '/' + d;
+        sc.dCands.appendChild(c); chips.push(c);
+      });
+    }
+    Object.keys(cellEls).forEach(k => cellEls[k].classList.remove('cand', 'pick'));
+    st.candidates.forEach(d => cellEls[d] && cellEls[d].classList.add('cand'));
+    showDay(st.candidates[0], false);
+    await drawWait(run, reduced ? 80 : 420);
+    if (run.skip || run.cancelled) break;
+
+    // 切り替え → 減速 → 停止
+    let prevEl = null, prevChip = null;
+    const seq = tickPlan(m, chosenIdx, i === 0);
+    for (let t = 0; t < seq.length; t++) {
+      const { idx, ms } = seq[t], d = st.candidates[idx];
+      showDay(d, ms < 90);
+      if (prevEl) prevEl.classList.remove('pick'); if (prevChip) prevChip.classList.remove('on');
+      prevEl = cellEls[d]; if (prevEl) prevEl.classList.add('pick');
+      prevChip = chips[idx] || null; if (prevChip) prevChip.classList.add('on');
+      pulse(sc.dNum, 1.07, Math.min(ms + 40, 220));
+      if (t >= seq.length - 4 && !reduced) buzz(6);
+      await drawWait(run, ms);
+      if (run.skip || run.cancelled) break;
+    }
+    if (run.skip || run.cancelled) break;
+
+    // 結果確定（表示している日 = 先に確定していた当選日）
+    showDay(st.chosen, false);
+    sc.dNum.classList.add('locked'); sc.dReel.classList.add('glow');
+    pulse(sc.dNum, 1.22, 520);
+    chips.forEach(c => c.classList.remove('on', 'win'));
+    if (chips[chosenIdx]) chips[chosenIdx].classList.add('win');
+    if (prevEl) prevEl.classList.remove('pick');
+    Object.keys(cellEls).forEach(k => cellEls[k].classList.remove('cand'));
+    if (!st.final) {
+      confirmed.push(st.chosen);
+      const cell = cellEls[st.chosen];
+      if (cell) {
+        cell.classList.add('run', 'pop'); cell.style.setProperty('--i', 0);
+        cell.dataset.day = st.chosen; cell.setAttribute('role', 'button'); cell.tabIndex = 0;
+      }
+      setProgress(i + 1, total, confirmed.length, totalRuns);
+      sc.dBar.style.width = Math.round((i + 1) / total * 100) + '%';
+      buzz([18, 30, 24]);
+    } else {
+      sc.dLabel.textContent = '月末 ' + vm + '月' + st.chosen + '日 で終了';
+      sc.dBar.style.width = '100%';
+      buzz(14);
+    }
+    sparkle(st.final ? 8 : 14, 78, false);
+    await drawWait(run, reduced ? 120 : 780);
+  }
+
+  if (run.cancelled) {         // 中止：途中経過は一切採用しない。以前の状態へ戻す
+    drawing = null; setDrawLock(false); sc.panel.hidden = true;
+    renderSchedule(); toast('抽選を中止しました（途中の日程は保存されていません）');
+    return false;
+  }
+  // 完成（スキップ時は残りをここで一括表示）
+  const skipped = run.skip;
+  drawing = null;
+  sc.dCancel.disabled = true; sc.dSkip.disabled = true;
+  drafts[ymKey(vy, vm)] = draft;
+  setDrawLock(false);
+  renderSchedule({ animate: !reduced, keepDone: true });          // 確定した日程でカレンダーと一覧を完成状態に
+  showComplete(draft);
+  if (skipped) toast('残りの日程を表示しました');
+  return true;
+}
+
+function showComplete(draft) {
+  sc.panel.className = 'draw done enter'; sc.panel.hidden = false;
+  sc.dTitle.textContent = 'SCHEDULE COMPLETE';
+  sc.dStep.textContent = '全' + draft.dates.length + '回';
+  sc.dLabel.textContent = vy + '年' + vm + '月の実行日が決まりました';
+  sc.dMo.textContent = ''; sc.dDay.textContent = draft.dates.length; sc.dWd.textContent = '回';
+  sc.dNum.classList.remove('fast'); sc.dNum.classList.add('locked'); sc.dReel.classList.add('glow');
+  sc.dCands.classList.remove('many'); sc.dCands.textContent = '';
+  draft.dates.forEach(d => { const c = document.createElement('span'); c.className = 'done'; c.textContent = vm + '/' + d; sc.dCands.appendChild(c); });
+  pulse(sc.dNum, 1.2, 600);
+  sparkle(18, 110, true);
+  buzz([20, 50, 20, 50, 40]);
+}
+
+async function onDrawCancel() {
+  const run = drawing; if (!run || run.cancelled) return;
+  run.paused = true;
+  const ok = await ask('抽選を中止しますか？', 'ここまでに決まった日程は破棄され、保存もされません。', '中止する');
+  if (drawing !== run) return;
+  run.paused = false;
+  if (ok) { run.cancelled = true; if (run.wake) run.wake(); }
+}
+function onDrawSkip() {
+  const run = drawing; if (!run || run.skip || run.cancelled) return;
+  run.skip = true; if (run.wake) run.wake();
+}
+
 // --- 生成・保存 ---
 async function onGenerate() {
-  const L = daysInMonth(vy, vm);
-  if (!isFeasible(L, sSet.min, sSet.max)) return;
-  const key = ymKey(vy, vm);
-  if (drafts[key]) {
-    const ok = await ask('再生成しますか？', 'まだ保存していない現在のスケジュールは破棄されます。', '再生成する');
-    if (!ok) return;
-  }
-  let res = null, draft = null;
-  for (let attempt = 0; attempt < 5 && !draft; attempt++) {
-    res = generateSchedule({ year: vy, month: vm, min: sSet.min, max: sSet.max });
-    if (!res.ok) break;
-    const cand = { year: vy, month: vm, min: sSet.min, max: sSet.max, dates: res.dates, createdAt: new Date().toISOString() };
-    if (validateSchedule(cand).ok) draft = cand;      // 生成後にも3条件を再検証（常に通る想定）
-  }
-  if (!draft) {
-    setNotice((res && !res.ok ? res.reason + ' ' + (res.hint || '') : 'スケジュールを生成できませんでした。もう一度お試しください。'), 'err');
-    return;
-  }
-  drafts[key] = draft;
-  renderSchedule({ animate: !reduced });
+  if (drawing || generating) return;                 // 二重実行の防止
+  generating = true;
+  try {
+    const L = daysInMonth(vy, vm);
+    if (!isFeasible(L, sSet.min, sSet.max)) return;
+    const key = ymKey(vy, vm);
+    if (drafts[key]) {
+      const ok = await ask('再生成しますか？', 'まだ保存していない現在のスケジュールは破棄されます。', '再生成する');
+      if (!ok) return;
+    }
+    let res = null, draft = null;
+    for (let attempt = 0; attempt < 5 && !draft; attempt++) {
+      res = generateSchedule({ year: vy, month: vm, min: sSet.min, max: sSet.max });
+      if (!res.ok) break;
+      const cand = { year: vy, month: vm, min: sSet.min, max: sSet.max, dates: res.dates, createdAt: new Date().toISOString() };
+      if (validateSchedule(cand).ok) draft = cand;      // 生成後にも3条件を再検証（常に通る想定）
+    }
+    if (!draft) {
+      setNotice((res && !res.ok ? res.reason + ' ' + (res.hint || '') : 'スケジュールを生成できませんでした。もう一度お試しください。'), 'err');
+      return;
+    }
+    // 先に結果を確定し、1回ずつの抽選に分解して演出する（各ステップの候補・当選日はこの結果と一致）
+    const steps = buildDrawSteps(L, sSet.min, sSet.max, draft.dates);
+    if (steps.some(st => !st.valid)) {                // 想定外：演出せず結果だけを表示
+      drafts[key] = draft; renderSchedule({ animate: !reduced }); return;
+    }
+    await runDraw(draft, steps);
+  } finally { generating = false; }
 }
 async function onSave() {
   const key = ymKey(vy, vm), d = drafts[key];
@@ -1568,7 +1857,7 @@ function openMonthSheet() {
 
 // --- モード切替 ---
 function applyMode(m, persist) {
-  if (state !== 'idle') return;
+  if (state !== 'idle' || drawing) return;
   mode = m;
   sc.roulette.hidden = m !== 'roulette'; sc.view.hidden = m !== 'schedule';
   el.settingsBtn.hidden = m !== 'roulette'; sc.pill.hidden = m !== 'schedule';
@@ -1588,6 +1877,8 @@ sc.title.addEventListener('click', openMonthSheet);
 sc.todayBtn.addEventListener('click', () => { const t = new Date(); setMonth(t.getFullYear(), t.getMonth() + 1); });
 sc.gen.addEventListener('click', onGenerate);
 sc.save.addEventListener('click', onSave);
+sc.dCancel.addEventListener('click', onDrawCancel);
+sc.dSkip.addEventListener('click', onDrawSkip);
 sc.del.addEventListener('click', onDeleteSaved);
 sc.back.addEventListener('click', () => { delete drafts[ymKey(vy, vm)]; renderSchedule(); });
 function flashRow(day) {

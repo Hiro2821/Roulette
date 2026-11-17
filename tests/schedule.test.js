@@ -17,7 +17,7 @@ const grab = (a, b) => {
 const S = vm.runInNewContext(
   grab('LOGIC-START', 'LOGIC-END') + grab('SCHEDULE-LOGIC-START', 'SCHEDULE-LOGIC-END') +
   ';({parseIntervalDays,validateInterval,parseYear,isLeapYear,daysInMonth,ymKey,weekdayMon0,buildMonthGrid,' +
-  'viability,firstChoices,isFeasible,explainInfeasible,generateSchedule,validateSchedule,scheduleIntervals,randomInt,SCHED_DEFAULTS})',
+  'viability,firstChoices,isFeasible,explainInfeasible,generateSchedule,buildDrawSteps,stepCandidates,validateSchedule,scheduleIntervals,randomInt,SCHED_DEFAULTS})',
   { crypto: webcrypto, globalThis: { crypto: webcrypto }, Math, console, Uint32Array, Number, String, parseInt, Object, Array, Date, Map, Set }
 );
 
@@ -292,6 +292,61 @@ ok('validateSchedule: 3条件のどれかが崩れたデータ・月またぎ・
   assert.ok(!S.validateSchedule({ ...base, dates: [4.5, 10] }).ok);
   assert.ok(!S.validateSchedule(null).ok);
   assert.deepStrictEqual(S.scheduleIntervals([4, 10, 13, 19, 24, 27], 30), { first: 3, gaps: [6, 3, 6, 5, 3], last: 3 });
+});
+
+// ---------- 抽選演出（ステップ分解） ----------
+// 各ステップの候補は「どれを選んでも最後まで条件を満たして終えられる日」だけで、当選日はその中にあり、
+// 連結すると生成結果と一致すること。到達可否は独立実装（正方向DFS）で確認する。
+ok('buildDrawSteps: 候補・当選日・最終ステップが生成結果と一致（複数年月×設定）', () => {
+  let steps = 0;
+  const canFinish = (L, lo, hi, cur, count) => {            // cur から月末までを有効に終えられるか（総当たり）
+    if (cur >= L) return false;
+    for (let s = lo; s <= hi; s++) {
+      const n = cur + s;
+      if (n === L && count > 0) return true;
+      if (n < L && canFinish(L, lo, hi, n, count + 1)) return true;
+    }
+    return false;
+  };
+  for (const y of YEARS) for (let mo = 1; mo <= 12; mo++) for (const [lo, hi] of CONFIGS) {
+    const L = S.daysInMonth(y, mo);
+    if (!S.isFeasible(L, lo, hi)) continue;
+    for (let k = 0; k < 3; k++) {
+      const r = S.generateSchedule({ year: y, month: mo, min: lo, max: hi });
+      const st = S.buildDrawSteps(L, lo, hi, r.dates);
+      assert.strictEqual(st.length, r.dates.length + 1);
+      st.forEach((t, i) => {
+        steps++;
+        assert.ok(t.valid, 'chosen must be a candidate');
+        assert.strictEqual(t.final, i === st.length - 1);
+        assert.strictEqual(t.chosen, i < r.dates.length ? r.dates[i] : L);
+        assert.strictEqual(t.from, i === 0 ? 1 : r.dates[i - 1]);
+        assert.ok(t.candidates.length >= 1);
+        t.candidates.forEach(c => {
+          const gap = c - t.from;
+          assert.ok(gap >= lo && gap <= hi && c <= L, 'gap in range, no month crossing');
+          if (c === L) assert.ok(i > 0, 'month-end candidate needs >=1 run day');
+          else assert.ok(canFinish(L, lo, hi, c, i + 1), 'candidate ' + c + ' must lead to a valid schedule');
+        });
+        // 有効なのに候補から漏れた日がないこと（歩幅の範囲内で全探索）
+        for (let c = t.from + lo; c <= Math.min(L, t.from + hi); c++) {
+          const valid = c === L ? i > 0 : canFinish(L, lo, hi, c, i + 1);
+          assert.strictEqual(t.candidates.includes(c), valid, 'candidate completeness at ' + c);
+        }
+      });
+      assert.strictEqual(st[st.length - 1].chosen, L);
+    }
+  }
+  assert.ok(steps > 500);
+});
+ok('buildDrawSteps: 11月・初期設定の最初の候補は11/3〜11/8、2回目(11/4始まり)は11/6〜11/11', () => {
+  const st = S.buildDrawSteps(30, 2, 7, [4, 10, 13, 19, 24, 27]);
+  assert.deepStrictEqual(st[0].candidates, [3, 4, 5, 6, 7, 8]);
+  assert.deepStrictEqual(st[1].candidates, [6, 7, 8, 9, 10, 11]);
+});
+ok('buildDrawSteps: 不正な当選日は valid=false になる', () => {
+  const st = S.buildDrawSteps(30, 2, 7, [4, 20]);
+  assert.ok(!st[1].valid);
 });
 
 console.log('\n' + pass + ' tests passed');
