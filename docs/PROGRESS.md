@@ -42,3 +42,9 @@ node tests/schedule.test.js
 ## 抽選演出（追加依頼・完了）
 - `stepCandidates` / `buildDrawSteps`（ロジック）＋ `runDraw` 等（演出）。結果確定→演出の分離構造。
 - テスト: `tests/schedule.test.js`（22件）。ブラウザ検証は別スクリプト（リポジトリ外）で76件+108件+40件を確認済み。
+
+## 映画品質の演出（追加依頼・完了）
+- 追加: 開始演出（光・3-2-1）、回転中の外周の光/残像、停止の衝撃、結果発表の演出、ニアミス（見た目のみ）、Web Audio合成サウンド、振動、サウンド設定（ヘッダーのスピーカーボタン）、スキップ（回転中SPIN→SKIP）、月間スケジュール側の音・光・条件確認・完成演出。
+- 構造: `index.html` 内の「演出」ブロック（`voices`/`sfx`/`fx`/`edgeGlow`/`dimFlash`）と、`spin`/`runIntro`/`frame`/`finishSpin`、月間側 `runDraw`。ロジックは `stopOffset`（LOGICブロック）のみ追加。
+- テスト: `tests/logic.test.js`（12件）、`tests/schedule.test.js`（22件）。ブラウザ検証は別スクリプトで確認（演出126件・月間108件・ルーレット40件・抽選演出76件）。
+- 最終検証済み（単体12+22、ブラウザ演出126・月間108・ルーレット40・抽選演出76 すべて通過）。残: 実機iPhoneでの音・振動・性能の確認。

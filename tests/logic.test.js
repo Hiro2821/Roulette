@@ -7,7 +7,7 @@ const html = fs.readFileSync((process.argv[2] || require('path').join(__dirname,
 const m = html.match(/\/\*LOGIC-START\*\/([\s\S]*?)\/\*LOGIC-END\*\//);
 if (!m) throw new Error('logic block not found');
 const L = vm.runInContext
-  ? vm.runInNewContext(m[1] + ';({TAU,LIMITS,parseDays,validateRange,buildValues,randomInt,indexAtPointer,planSpin,makeProfile,mod})',
+  ? vm.runInNewContext(m[1] + ';({TAU,LIMITS,parseDays,validateRange,buildValues,randomInt,indexAtPointer,planSpin,makeProfile,mod,stopOffset})',
       { globalThis: { crypto: webcrypto }, crypto: webcrypto, Math, console, Uint32Array, Number, String, parseInt, Object })
   : null;
 
@@ -104,6 +104,36 @@ ok('makeProfile: 単調増加・終端一致・加速→等速→減速・不連
   assert.ok(Math.abs(at(1.2) - pr.vmax) < pr.vmax * 0.01, 'cruise');
   assert.ok(at(3) < at(2.0) && at(5) < at(3) && at(pr.T - 0.05) < pr.vmax * 0.01, 'decelerating smoothly to ~0');
   console.log('        vmax=' + pr.vmax.toFixed(2) + ' rad/s (' + (pr.vmax / L.TAU).toFixed(2) + ' rev/s), T=' + pr.T.toFixed(1) + 's');
+});
+
+
+// 演出（ニアミス）は見た目だけ：どの停止位置でも、指針が指す区画 = 先に決めた当選区画
+ok('stopOffset: ニアミス/通常どちらでも当選区画の内側で、停止角から求めた区画が当選と一致', () => {
+  let near = 0, total = 0;
+  for (let n = 2; n <= 60; n++) {
+    for (let k = 0; k < 400; k++) {
+      const winner = L.randomInt(n), nm = Math.random() < 0.5, u = Math.random();
+      const off = L.stopOffset(u, nm);
+      assert.ok(Math.abs(off) < 0.5, 'inside winner segment');
+      if (nm) { assert.ok(off <= -0.38 && off >= -0.45, 'near-miss edge: ' + off); near++; }
+      const rot0 = Math.random() * 100 - 50;
+      const plan = L.planSpin({ winnerIdx: winner, n, rot: rot0, spins: 4 + L.randomInt(3), offsetFrac: off });
+      assert.strictEqual(L.indexAtPointer(plan.finalRot, n), winner, 'n=' + n + ' off=' + off);
+      assert.ok(plan.distance > 3 * L.TAU, 'spins at least a few turns');
+      total++;
+    }
+  }
+  assert.ok(near > 5000 && total > 20000);
+});
+ok('stopOffset: ニアミスは当選確率を変えない（当選は offset と無関係に先に決まる）', () => {
+  const n = 7, cnt = new Array(n).fill(0), N = 70000;
+  for (let i = 0; i < N; i++) {
+    const w = L.randomInt(n), nm = i % 2 === 0;
+    const plan = L.planSpin({ winnerIdx: w, n, rot: 1.234, spins: 4, offsetFrac: L.stopOffset(Math.random(), nm) });
+    cnt[L.indexAtPointer(plan.finalRot, n)]++;
+  }
+  const exp = N / n, chi = cnt.reduce((a, c) => a + (c - exp) * (c - exp) / exp, 0);
+  assert.ok(chi < 22.46, 'chi2=' + chi);            // 自由度6・99.9%
 });
 
 console.log('\n' + pass + ' tests passed');
